@@ -1,0 +1,40 @@
+{
+  "_note": "MOCK regulator records. Not real AICTE data.",
+  "institutions": {
+    "SOC/2015/04401": {
+      "approved_intake": "120",
+      "institution_type": "Engineering (mock)",
+      "legal_name": "Sri Vidya Educational Trust"
+    },
+    "SOC/2015/04402": {
+      "approved_intake": "120",
+      "institution_type": "Engineering (mock)",
+      "legal_name": "Sri Vidya Educational Trust"
+    },
+    "SOC/2015/04403": {
+      "approved_intake": "120",
+      "institution_type": "Engineering (mock)",
+      "legal_name": "Sri Vidya Educational Trust"
+    },
+    "SOC/2015/04404": {
+      "approved_intake": "120",
+      "institution_type": "Engineering (mock)",
+      "legal_name": "Sri Vidya Educational Trust"
+    },
+    "SOC/2015/04405": {
+      "approved_intake": "60",
+      "institution_type": "Engineering (mock)",
+      "legal_name": "Sri Vidya Educational Trust"
+    },
+    "SOC/2015/04406": {
+      "approved_intake": "120",
+      "institution_type": "Engineering (mock)",
+      "legal_name": "Sri Vidya Educational Trust"
+    },
+    "SOC/2015/04407": {
+      "approved_intake": "120",
+      "institution_type": "Engineering (mock)",
+      "legal_name": "Sri Vidya Educational Trust"
+    }
+  }
+}

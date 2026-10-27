@@ -1,0 +1,618 @@
+{
+  "_note": "MOCK issuer record books for the synthetic scenarios.",
+  "records": [
+    {
+      "data": {
+        "registration_date": "2 April 2015"
+      },
+      "doc_type": "society_registration",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2015-04-02",
+      "number": "SOC/2015/04401",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "land_area_acres": "3.2",
+        "registration_date": "10 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_deed",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-10",
+      "number": "DEED/2023/1001",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "20 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "encumbrance_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-20",
+      "number": "EC/2023/2001",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "15 June 2023",
+        "land_area_acres": "3.2",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_use_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-06-15",
+      "number": "LUC/2023/3001",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "approval_date": "20 September 2023",
+        "built_up_area_sqm": "2400",
+        "survey_no": "45/2"
+      },
+      "doc_type": "building_plan",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-09-20",
+      "number": "BP/2023/4001",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "building_plan_number": "BP/2023/4001",
+        "built_up_area_sqm": "2400",
+        "issue_date": "5 August 2024"
+      },
+      "doc_type": "occupancy_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2024-08-05",
+      "number": "OC/2024/5001",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "1 July 2025",
+        "valid_until": "30 June 2027"
+      },
+      "doc_type": "fire_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-07-01",
+      "number": "FIRE/2025/6001",
+      "valid_until": "2027-06-30"
+    },
+    {
+      "data": {
+        "approved_intake": "120",
+        "issue_date": "12 September 2025"
+      },
+      "doc_type": "state_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-09-12",
+      "number": "SNOC/2025/7001",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "registration_date": "2 April 2015"
+      },
+      "doc_type": "society_registration",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2015-04-02",
+      "number": "SOC/2015/04402",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "20 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "encumbrance_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-20",
+      "number": "EC/2023/2002",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "15 June 2023",
+        "land_area_acres": "3.2",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_use_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-06-15",
+      "number": "LUC/2023/3002",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "approval_date": "20 September 2023",
+        "built_up_area_sqm": "2400",
+        "survey_no": "45/2"
+      },
+      "doc_type": "building_plan",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-09-20",
+      "number": "BP/2023/4002",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "building_plan_number": "BP/2023/4002",
+        "built_up_area_sqm": "2400",
+        "issue_date": "5 August 2024"
+      },
+      "doc_type": "occupancy_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2024-08-05",
+      "number": "OC/2024/5002",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "1 July 2025",
+        "valid_until": "30 June 2027"
+      },
+      "doc_type": "fire_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-07-01",
+      "number": "FIRE/2025/6002",
+      "valid_until": "2027-06-30"
+    },
+    {
+      "data": {
+        "approved_intake": "120",
+        "issue_date": "12 September 2025"
+      },
+      "doc_type": "state_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-09-12",
+      "number": "SNOC/2025/7002",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "registration_date": "2 April 2015"
+      },
+      "doc_type": "society_registration",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2015-04-02",
+      "number": "SOC/2015/04403",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "land_area_acres": "3.2",
+        "registration_date": "10 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_deed",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-10",
+      "number": "DEED/2023/1003",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "20 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "encumbrance_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-20",
+      "number": "EC/2023/2003",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "15 June 2023",
+        "land_area_acres": "3.2",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_use_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-06-15",
+      "number": "LUC/2023/3003",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "approval_date": "20 September 2023",
+        "built_up_area_sqm": "2400",
+        "survey_no": "45/2"
+      },
+      "doc_type": "building_plan",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-09-20",
+      "number": "BP/2023/4003",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "building_plan_number": "BP/2023/4003",
+        "built_up_area_sqm": "2400",
+        "issue_date": "5 August 2024"
+      },
+      "doc_type": "occupancy_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2024-08-05",
+      "number": "OC/2024/5003",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "1 July 2025",
+        "valid_until": "30 June 2027"
+      },
+      "doc_type": "fire_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-07-01",
+      "number": "FIRE/2025/6003",
+      "valid_until": "2027-06-30"
+    },
+    {
+      "data": {
+        "approved_intake": "120",
+        "issue_date": "12 September 2025"
+      },
+      "doc_type": "state_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-09-12",
+      "number": "SNOC/2025/7003",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "registration_date": "2 April 2015"
+      },
+      "doc_type": "society_registration",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2015-04-02",
+      "number": "SOC/2015/04404",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "land_area_acres": "3.2",
+        "registration_date": "10 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_deed",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-10",
+      "number": "DEED/2023/1004",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "20 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "encumbrance_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-20",
+      "number": "EC/2023/2004",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "15 June 2023",
+        "land_area_acres": "3.2",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_use_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-06-15",
+      "number": "LUC/2023/3004",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "approval_date": "20 September 2023",
+        "built_up_area_sqm": "2400",
+        "survey_no": "45/2"
+      },
+      "doc_type": "building_plan",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-09-20",
+      "number": "BP/2023/4004",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "building_plan_number": "BP/2023/4004",
+        "built_up_area_sqm": "2400",
+        "issue_date": "5 August 2024"
+      },
+      "doc_type": "occupancy_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2024-08-05",
+      "number": "OC/2024/5004",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "1 April 2021",
+        "valid_until": "31 March 2026"
+      },
+      "doc_type": "fire_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2021-04-01",
+      "number": "FIRE/2025/6004",
+      "valid_until": "2026-03-31"
+    },
+    {
+      "data": {
+        "approved_intake": "120",
+        "issue_date": "12 September 2025"
+      },
+      "doc_type": "state_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-09-12",
+      "number": "SNOC/2025/7004",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "registration_date": "2 April 2015"
+      },
+      "doc_type": "society_registration",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2015-04-02",
+      "number": "SOC/2015/04405",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "land_area_acres": "3.2",
+        "registration_date": "10 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_deed",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-10",
+      "number": "DEED/2023/1005",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "20 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "encumbrance_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-20",
+      "number": "EC/2023/2005",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "15 June 2023",
+        "land_area_acres": "3.2",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_use_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-06-15",
+      "number": "LUC/2023/3005",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "approval_date": "20 September 2023",
+        "built_up_area_sqm": "2400",
+        "survey_no": "45/2"
+      },
+      "doc_type": "building_plan",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-09-20",
+      "number": "BP/2023/4005",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "building_plan_number": "BP/2023/4005",
+        "built_up_area_sqm": "2400",
+        "issue_date": "5 August 2024"
+      },
+      "doc_type": "occupancy_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2024-08-05",
+      "number": "OC/2024/5005",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "1 July 2025",
+        "valid_until": "30 June 2027"
+      },
+      "doc_type": "fire_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-07-01",
+      "number": "FIRE/2025/6005",
+      "valid_until": "2027-06-30"
+    },
+    {
+      "data": {
+        "approved_intake": "120",
+        "issue_date": "12 September 2025"
+      },
+      "doc_type": "state_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-09-12",
+      "number": "SNOC/2025/7005",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "registration_date": "2 April 2015"
+      },
+      "doc_type": "society_registration",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2015-04-02",
+      "number": "SOC/2015/04406",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "land_area_acres": "3.2",
+        "registration_date": "10 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_deed",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-10",
+      "number": "DEED/2023/1006",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "20 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "encumbrance_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-20",
+      "number": "EC/2023/2006",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "15 June 2023",
+        "land_area_acres": "3.2",
+        "survey_no": "46/1"
+      },
+      "doc_type": "land_use_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-06-15",
+      "number": "LUC/2023/3006",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "approval_date": "20 September 2023",
+        "built_up_area_sqm": "2400",
+        "survey_no": "45/2"
+      },
+      "doc_type": "building_plan",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-09-20",
+      "number": "BP/2023/4006",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "building_plan_number": "BP/2023/4006",
+        "built_up_area_sqm": "2400",
+        "issue_date": "5 August 2024"
+      },
+      "doc_type": "occupancy_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2024-08-05",
+      "number": "OC/2024/5006",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "1 July 2025",
+        "valid_until": "30 June 2027"
+      },
+      "doc_type": "fire_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-07-01",
+      "number": "FIRE/2025/6006",
+      "valid_until": "2027-06-30"
+    },
+    {
+      "data": {
+        "approved_intake": "120",
+        "issue_date": "12 September 2025"
+      },
+      "doc_type": "state_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-09-12",
+      "number": "SNOC/2025/7006",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "registration_date": "2 April 2015"
+      },
+      "doc_type": "society_registration",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2015-04-02",
+      "number": "SOC/2015/04407",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "land_area_acres": "3.2",
+        "registration_date": "10 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "land_deed",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-10",
+      "number": "DEED/2023/1007",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "20 March 2023",
+        "survey_no": "45/2"
+      },
+      "doc_type": "encumbrance_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-03-20",
+      "number": "EC/2023/2007",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "approval_date": "20 September 2023",
+        "built_up_area_sqm": "2400",
+        "survey_no": "45/2"
+      },
+      "doc_type": "building_plan",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2023-09-20",
+      "number": "BP/2023/4007",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "building_plan_number": "BP/2023/4007",
+        "built_up_area_sqm": "2400",
+        "issue_date": "5 August 2024"
+      },
+      "doc_type": "occupancy_certificate",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2024-08-05",
+      "number": "OC/2024/5007",
+      "valid_until": null
+    },
+    {
+      "data": {
+        "issue_date": "1 July 2025",
+        "valid_until": "30 June 2027"
+      },
+      "doc_type": "fire_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-07-01",
+      "number": "FIRE/2025/6007",
+      "valid_until": "2027-06-30"
+    },
+    {
+      "data": {
+        "approved_intake": "120",
+        "issue_date": "12 September 2025"
+      },
+      "doc_type": "state_noc",
+      "holder": "Sri Vidya Educational Trust",
+      "issued_on": "2025-09-12",
+      "number": "SNOC/2025/7007",
+      "valid_until": null
+    }
+  ]
+}

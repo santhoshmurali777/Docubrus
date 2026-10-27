@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docubrus - verify an application</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%231e40af'/%3E%3Cpath d='M9.5 16.5l4.5 4.5 8.5-9.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{color-scheme:light;
+--bg:#f5f7fb;--surface:#fff;--sunk:#f0f3f8;--ink:#0f172a;--mute:#5b6577;--line:#e2e8f0;--line2:#c9d3e0;
+--brand:#1e40af;--brand-soft:#e8eefc;--onbrand:#fff;
+--red:#b42318;--redbg:#fdecea;--amb:#8a5a00;--ambbg:#fff3d6;--grn:#16643a;--grnbg:#e3f5ea;--blu:#25508f;--blubg:#e6eefb;
+--sred:#d92d20;--sred2:#ee7a70;--samb:#d99a00;--samb2:#ecc766;--sblu:#3b77d1;--sgrn:#2a9d5c;
+--serif:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Noto Sans Devanagari","Nirmala UI",sans-serif;
+--shadow:0 8px 24px -12px rgba(30,64,175,.25)}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--serif);font-weight:700;letter-spacing:-.02em;line-height:1.2;margin:0}
+h2{font-size:21px}h3{font-size:17px}
+p{margin:0}
+a{color:var(--brand)}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--mute);font-size:13px}
+
+/* header */
+header{background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{max-width:1120px;margin:0 auto;padding:11px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--brand)}
+.brand svg{flex:none}.brand b{font:700 22px/1 var(--serif);letter-spacing:-.02em;color:var(--ink)}
+.brand span{font-size:16px;color:var(--mute)}
+nav.top{display:flex;gap:2px;margin-left:8px}
+nav.top a{color:var(--mute);text-decoration:none;padding:7px 13px;border-radius:8px;font-size:14.5px;font-weight:500}
+nav.top a:hover{color:var(--ink);background:var(--sunk)}
+nav.top a[aria-current=page]{background:var(--brand-soft);color:var(--brand);font-weight:650}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute);margin-left:auto}
+.who input{padding:6px 10px;border-radius:8px;width:170px;font-size:14px}
+.tag{font-size:12px;background:var(--ambbg);color:var(--amb);padding:3px 10px;border-radius:999px;font-weight:600}
+.bar>.tag{margin-left:auto}.who:not([hidden])+.tag{margin-left:0}
+main{max-width:1120px;margin:0 auto;padding:26px 20px 70px}
+main.wide,header.wide .bar{max-width:1400px}
+
+/* controls */
+input[type=text],textarea,select{font:inherit;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--ink)}
+button{font:inherit;font-weight:550;cursor:pointer;border-radius:8px;border:1px solid var(--line2);background:var(--surface);color:var(--ink);padding:9px 15px}
+button:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible,.tile:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.primary{background:var(--brand);border-color:var(--brand);color:var(--onbrand);padding:10px 20px}
+.primary:hover:not(:disabled){background:var(--brand);color:var(--onbrand);filter:brightness(1.1)}
+.link{background:none;border:none;color:var(--brand);padding:2px 4px;text-decoration:underline;font-weight:500}
+.link:hover:not(:disabled){color:var(--brand);border:none}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:2px 9px 2px 7px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.s-red{background:var(--redbg);color:var(--red)}.s-amb{background:var(--ambbg);color:var(--amb)}.s-grn{background:var(--grnbg);color:var(--grn)}.s-blu{background:var(--blubg);color:var(--blu)}
+
+/* intake */
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:34px;align-items:start}
+.hero h1{font-size:clamp(30px,4.2vw,44px);max-width:15em}
+.lead{color:var(--mute);margin:12px 0 22px;max-width:34em;font-size:16.5px}
+.drop{border:1.5px dashed var(--line2);border-radius:12px;padding:30px 20px;text-align:center;cursor:pointer;background:var(--surface);transition:border-color .15s,background .15s}
+.drop:hover,.drop.over,.drop:focus-visible{border-color:var(--brand);background:var(--brand-soft);outline:none}
+.drop svg{color:var(--brand);margin-bottom:6px}
+.drop b{display:block;font-size:17px}.drop span{color:var(--mute);font-size:13.5px;display:block;max-width:30em;margin:4px auto 0}
+.files{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px}
+.files li{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px 6px 12px;font-size:14px}
+.files li span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.files .sz{flex:none;color:var(--mute);font-size:12px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-top:16px}
+label.f{display:grid;gap:5px;font-size:13px;color:var(--mute);flex:1;min-width:220px}
+#err{color:var(--red);margin-top:12px;font-weight:600}
+.opts{margin-top:14px;font-size:14px;color:var(--mute)}.opts summary{cursor:pointer;color:var(--mute)}
+.sim{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px}
+.try h2{font-size:19px}.try>p{font-size:14px;color:var(--mute);margin:4px 0 12px}
+.sc{position:relative;display:grid;grid-template-columns:1fr auto;gap:2px 10px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--tc,var(--line2));border-radius:8px;padding:9px 12px;margin-bottom:8px;transition:border-color .15s,transform .15s}
+.sc:hover{border-color:var(--brand);border-left-color:var(--tc,var(--brand))}
+.sc:focus-within{outline:2px solid var(--brand);outline-offset:2px}
+.sc button{all:unset;grid-column:1;font-weight:650;cursor:pointer;font-size:14.5px}
+.sc button::after{content:"";position:absolute;inset:0;border-radius:8px}
+.sc .tg{grid-column:2;grid-row:1;align-self:center}.sc p{grid-column:1/-1;font-size:13px;color:var(--mute);line-height:1.4}
+.sc.t-red{--tc:var(--sred)}.sc.t-grn{--tc:var(--sgrn)}.sc.t-amb{--tc:var(--samb)}
+.runall{margin-top:6px;width:100%}
+.how{margin-top:46px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.how div{border-top:2px solid var(--brand);padding-top:10px}.how h3{margin-bottom:4px}.how p{color:var(--mute);font-size:14.5px;max-width:26em}
+.ladder7{margin:46px 0 0}.ladder7>p{color:var(--mute);margin:6px 0 14px;max-width:44em}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.steps li{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;color:var(--mute);line-height:1.4;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.steps .pill{white-space:normal;text-align:left;line-height:1.25}
+.steps li i{font-style:normal;font-weight:700;color:var(--mute);font-size:12px}
+
+/* busy */
+.busy{max-width:520px;margin:60px auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px 26px;box-shadow:var(--shadow)}
+.stages{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:10px}
+.stages li{display:flex;gap:10px;align-items:center;color:var(--mute);font-size:15px}
+.stages li::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;border:2px solid var(--line2)}
+.stages li.on{color:var(--ink);font-weight:600}.stages li.on::before{border-color:var(--brand);background:var(--brand);animation:pulse 1s ease-in-out infinite}
+.stages li.done::before{background:var(--sgrn);border-color:var(--sgrn)}
+@keyframes pulse{50%{box-shadow:0 0 0 6px var(--brand-soft)}}
+
+/* result summary */
+.summary{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-bottom:14px}
+.verdict{--c:var(--red);--cbg:var(--redbg);display:flex;gap:16px;align-items:center;border-radius:12px;padding:20px 24px;background:var(--cbg);color:var(--c)}
+.verdict.v-amb{--c:var(--amb);--cbg:var(--ambbg)}.verdict.v-grn{--c:var(--grn);--cbg:var(--grnbg)}
+.verdict .vi{flex:none;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:var(--c);color:var(--cbg)}
+.verdict h1{font-size:30px}.verdict p{margin-top:3px;color:var(--ink)}
+.verdict .meta{font-size:13px;color:var(--mute);margin-top:6px;display:flex;gap:4px 16px;flex-wrap:wrap}
+.mixp{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;justify-content:center;gap:12px}
+.mixp b{font-size:14px}
+.spec{display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--line);gap:2px}
+.spec i{display:block;flex:0 1 0%;min-width:0;transition:flex-grow .9s cubic-bezier(.2,.8,.2,1)}
+.spec.in i{flex-grow:var(--n)}
+.lg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--mute)}.lg span{display:inline-flex;gap:6px;align-items:center}.lg em{font-style:normal;font-weight:700;color:var(--ink)}
+.lg u{display:inline-block;width:11px;height:11px;border-radius:3px;text-decoration:none}
+.k-Contradicted{background:var(--sred)}.k-Expired{background:var(--sred2)}
+.k-Missing{background:repeating-linear-gradient(45deg,var(--sred) 0 3px,var(--redbg) 3px 6px)}
+.k-Source{background:var(--sblu)}.k-Insufficient{background:var(--samb)}
+.k-Blurry{background:repeating-linear-gradient(45deg,var(--samb) 0 3px,var(--ambbg) 3px 6px)}.k-Verified{background:var(--sgrn)}
+
+/* dossier strip */
+.dossier{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px 6px;margin-bottom:16px;min-width:0}
+.dossier .dh{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}.dossier .dh h2{font-size:18px}
+.strip{display:flex;gap:14px;overflow-x:auto;padding:6px 6px 12px;margin:0 -6px}
+.tile{--tc:var(--sgrn);flex:none;width:104px;text-align:left;background:none;border:0;padding:0;color:var(--ink);border-radius:8px}
+.tile:hover:not(:disabled){color:var(--ink)}
+.tile.t-red{--tc:var(--sred)}.tile.t-amb{--tc:var(--samb)}.tile.t-blu{--tc:var(--sblu)}.tile.t-grn{--tc:var(--sgrn)}
+.tile .pg{position:relative;aspect-ratio:3/4;border-radius:6px;border:2px solid var(--tc);overflow:hidden;background:#fff;display:block}
+.tile img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+.tile .bd{position:absolute;top:4px;right:4px;width:21px;height:21px;border-radius:50%;background:var(--tc);color:#fff;display:grid;place-items:center}
+.tile .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.3;margin-top:6px;font-weight:550}
+.tile.cur .pg{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--tc)}
+.tile.ghost .pg{border-style:dashed;display:grid;place-items:center;text-align:center;font-size:11px;color:var(--red);background:var(--redbg);padding:6px;line-height:1.3}
+
+/* case columns */
+.case{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.left{min-width:0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.acts button{padding:7px 14px;font-size:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.panel{margin:0 0 14px;border-top:3px solid var(--brand)}.panel .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.panel .top b{font-size:16px;font-family:var(--serif)}
+.flt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:22px 0 10px}.flt h2{margin-right:6px}
+.flt button{border-radius:999px;padding:5px 13px;font-size:13.5px}
+.flt button[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:var(--onbrand)}
+.flt button b{font-variant-numeric:tabular-nums;margin-left:3px}
+.doc{--tc:var(--sgrn);margin-bottom:10px;padding:0;overflow:hidden;border-left:4px solid var(--tc)}
+.doc.t-red{--tc:var(--sred)}.doc.t-amb{--tc:var(--samb)}.doc.t-blu{--tc:var(--sblu)}
+.doc>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer}
+.doc>summary::-webkit-details-marker{display:none}
+.doc .t{flex:1;font-weight:650;min-width:0}.doc .t small{display:block;font-weight:400;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chev{color:var(--mute);transition:transform .15s}.doc[open] .chev{transform:rotate(90deg)}
+.body{padding:2px 16px 14px;border-top:1px solid var(--line)}
+.proof{display:grid;gap:5px;margin:12px 0 6px;font-size:14px}.proof div{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.proof .k{flex:none;min-width:48px;font-size:12px;font-weight:700;border-radius:4px;padding:0 6px;text-align:center}
+.ok{color:var(--grn);background:var(--grnbg)}.no{color:var(--red);background:var(--redbg)}.sk{color:var(--mute);background:var(--sunk)}
+.proof .lab{flex:none;font-weight:650;min-width:48px}
+.grp{padding:14px 0 12px;border-bottom:1px solid var(--line)}.grp:last-child{border-bottom:none;padding-bottom:4px}
+.grp .gh{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grp .why{margin:6px 0 0}
+.rows{margin-top:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.fi{padding:8px 10px 8px 12px;border-bottom:1px solid var(--line);border-left:3px solid transparent}
+.fi:last-child{border-bottom:none}
+.fi.sel{background:var(--brand-soft);border-left-color:var(--brand)}
+.fi .h{display:flex;gap:4px 10px;align-items:center;flex-wrap:wrap}.fi .v{font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fi .lb{color:var(--mute)}.fi .loc{font-size:12px;color:var(--mute)}
+.fi .show{margin-left:auto;padding:2px 10px;font-size:13px}
+.todo{margin:5px 0 0;font-size:14px;color:var(--mute)}.todo b{color:var(--ink)}
+details.lad{margin-top:6px}details.lad>summary{cursor:pointer;font-size:13px;color:var(--mute)}details.lad>summary:hover{color:var(--brand)}
+ol.lad{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:3px;font-size:13px}
+ol.lad li{display:grid;grid-template-columns:20px 150px 1fr;gap:8px;align-items:baseline;color:var(--mute);padding:3px 6px;border-radius:5px}
+ol.lad li i{font-style:normal;font-weight:700;text-align:right}
+ol.lad li.dec{background:var(--sunk);color:var(--ink);font-weight:600}ol.lad li.dec i{color:var(--brand)}
+ol.lad li.also1{color:var(--ink)}
+details.act{margin-top:4px}details.act>summary{cursor:pointer;font-size:13px;color:var(--mute)}details.act>summary:hover{color:var(--brand)}.panel details.act>summary{color:var(--brand);font-size:14px;font-weight:600}.panel details.act{margin-top:8px}
+.actbox{display:grid;gap:8px;margin-top:8px}.actbox textarea{font-size:14px;min-height:64px;resize:vertical}
+.actbox .btns{display:flex;gap:8px;flex-wrap:wrap}.actbox .btns button{padding:6px 12px;font-size:13px}
+.actbox .hint{font-size:12px;color:var(--mute)}.actbox .e,.e{color:var(--red);font-size:13px;font-weight:600}
+.thread{display:grid;gap:6px;margin-top:8px}.thread:empty{display:none}
+.ai{border-left:3px solid var(--line2);padding:2px 10px;font-size:14px}.ai .m{font-size:12px;color:var(--mute)}.ai p{margin:2px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai.k-clarify{border-color:var(--amb)}.ai.k-approve{border-color:var(--grn)}.ai.k-attest{border-color:var(--blu)}
+.issues{margin:8px 0 0;padding-left:18px}.issues li{margin:5px 0}
+.empty{padding:22px;text-align:center;color:var(--mute)}
+
+/* viewer */
+.viewer{position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;padding:12px;gap:8px;box-shadow:var(--shadow);min-width:0}
+.viewer .vh{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.viewer .vh select{flex:1;min-width:140px;padding:6px 10px}
+.viewer .vh button{padding:5px 10px;min-width:34px}
+.viewer .vh .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.cap{font-size:14px;background:var(--sunk);border-radius:8px;padding:8px 10px;line-height:1.45}.cap .h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.scroller{overflow:auto;position:relative;background:#dde3ec;border-radius:8px;flex:1;min-height:220px}
+.sheet{position:relative;background:#fff;margin:0 auto;width:100%}.sheet img{display:block;width:100%;height:100%}
+.sheet .gone{position:absolute;inset:0;display:grid;place-items:center;padding:20px;text-align:center;color:#555;font-size:14px}
+.bx{position:absolute;padding:0;border-radius:3px;border:2px solid;background:transparent;cursor:pointer;min-width:8px;min-height:8px}
+.bx:hover:not(:disabled){background:rgba(0,0,0,.08);border-color:inherit}
+.bx.sel{border-width:3px;z-index:3;box-shadow:0 0 0 3px rgba(255,255,255,.9),0 0 0 5px currentColor}
+.bx.red{color:#d92d20;border-color:#d92d20;background:rgba(217,45,32,.14)}.bx.amb{color:#b54708;border-color:#dc6803;border-style:dashed;background:rgba(220,104,3,.12)}
+.bx.grn{color:#067647;border-color:#079455;border-width:1px;background:rgba(7,148,85,.10)}.bx.blu{color:#175cd3;border-color:#2e6fd8;border-style:dotted;background:rgba(46,111,216,.12)}
+.bx .chip{pointer-events:none;position:absolute;left:-2px;bottom:calc(100% + 4px);background:currentColor;border-radius:4px;padding:0 6px;white-space:nowrap;font-size:11px;font-weight:700;line-height:18px;display:none}
+.bx.sel .chip{display:block}.bx.below .chip{bottom:auto;top:calc(100% + 4px)}.bx.rt .chip{left:auto;right:-2px}.bx .chip span{color:#fff}
+.legend{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12px;color:var(--mute);align-items:center}
+.legend i{display:inline-block;width:12px;height:12px;border:2px solid;border-radius:2px;vertical-align:-2px;margin-right:4px}
+.legend .red i{border-color:#d92d20;background:rgba(217,45,32,.2)}.legend .amb i{border-color:#dc6803;border-style:dashed}.legend .blu i{border-color:#2e6fd8;border-style:dotted}.legend .grn i{border-color:#079455;border-width:1px}
+.legend kbd{font:600 11px var(--sans);border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:0 5px;margin:0 2px;color:var(--ink);background:var(--surface)}
+.legend .keys{margin-left:auto}
+
+/* cases */
+.kpis{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0 16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 18px;min-width:130px}.kpi b{display:block;font:600 30px/1.1 var(--serif);font-variant-numeric:tabular-nums}.kpi span{font-size:13px;color:var(--mute)}
+table.cases{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+table.cases th{font-size:12.5px;color:var(--mute);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-weight:600;background:var(--sunk)}
+table.cases td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}table.cases tr:last-child td{border:none}
+table.cases tbody tr:hover td{background:var(--brand-soft)}table.cases a{color:var(--ink);font-weight:650;text-decoration:none}table.cases a:hover{text-decoration:underline}
+.risk{display:flex;align-items:center;gap:8px;min-width:90px}.risk .bar2{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden;min-width:40px}.risk .bar2 i{display:block;height:100%;background:var(--sred)}
+.risk b{font-variant-numeric:tabular-nums;min-width:28px;text-align:right}
+.mini{display:flex;height:8px;border-radius:3px;overflow:hidden;gap:1px;min-width:90px;background:var(--line)}.mini i{display:block}
+.n-red{color:var(--red);font-weight:700}.n-amb{color:var(--amb);font-weight:700}.n-grn{color:var(--grn);font-weight:700}
+
+@media(max-width:1000px){.hero{grid-template-columns:1fr}.summary{grid-template-columns:1fr}.case{grid-template-columns:1fr}.viewer{position:static;max-height:none}.scroller{max-height:70vh}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}.how{grid-template-columns:1fr}.legend .keys{display:none}}
+@media(max-width:700px){.tag{display:none}h1{font-size:26px}.verdict h1{font-size:25px}.who{margin-left:0;width:100%}.who input{flex:1;width:auto}nav.top{margin-left:0}table.cases .hide-s{display:none}ol.lad li{grid-template-columns:20px 1fr}ol.lad li span:last-child{grid-column:2}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}.spec i{flex-grow:var(--n)}}
+@media print{header,.acts,#intake,.viewer,.show,details.act,.flt,.dossier .strip,.panel .actbox,details.lad{display:none}.case{display:block}.doc{break-inside:avoid}body{background:#fff;color:#000}.card,.mixp,.dossier{border-color:#999}}
+</style>
+</head>
+<body>
+<header id="hdr"><div class="bar">
+  <a class="brand" href="#/" aria-label="Docubrus home"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="10" fill="currentColor" opacity=".14"/><path d="M10 16.5l4.3 4.3 8-9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><b>Docubrus</b></a>
+  <nav class="top" aria-label="Main"><a href="#/" id="nNew">New check</a><a href="#/cases" id="nCases">Cases</a></nav>
+  <label class="who" id="whoWrap" hidden>Reviewing as <input type="text" id="who" maxlength="80" placeholder="your name" autocomplete="name"></label>
+  <span class="tag">Prototype with mock issuers</span></div></header>
+<main id="main">
+<section id="intake">
+  <div class="hero">
+    <div>
+      <h1>Find the forged, expired and inconsistent documents in an application.</h1>
+      <p class="lead">Upload the application as PDFs. Docubrus reads every page, checks each document's proof of authenticity, compares facts across documents and the regulator's record, and shows exactly where each problem sits.</p>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose PDF files">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M12 17v-6M9.5 13.5L12 11l2.5 2.5"/></svg>
+        <b>Drop PDF files here, or click to browse</b>
+        <span>PDFs or scans, up to 15 files and 10 MB each. Scans are read with OCR (English, plus Hindi and Tamil where installed).</span>
+        <input type="file" id="pick" accept="application/pdf" multiple hidden>
+      </div>
+      <ul class="files" id="list" aria-live="polite"></ul>
+      <div class="row">
+        <label class="f">Institution name (optional)<input type="text" id="inst" maxlength="120" placeholder="e.g. Sri Vidya Educational Trust"></label>
+        <button class="primary" id="go" disabled>Verify documents</button>
+      </div>
+      <div id="err" role="alert"></div>
+      <details class="opts"><summary>Simulate an outage</summary>
+        <div class="sim"><label><input type="checkbox" id="oFire"> Fire department is offline</label>
+        <label><input type="checkbox" id="oAicte"> Regulator is offline</label></div>
+      </details>
+    </div>
+    <aside class="try" aria-label="Sample applications">
+      <h2>No files? Try a seeded case</h2>
+      <p>Each sample is a full 10-document application with one problem planted. One click runs it.</p>
+      <div id="samples"></div>
+      <button class="runall" id="runAll">Run all samples and open the case list</button>
+    </aside>
+  </div>
+  <div class="how">
+    <div><h3>1. Read</h3><p>Text and scans are read page by page. Every value is pinned to the exact box it came from.</p></div>
+    <div><h3>2. Prove</h3><p>Signatures, QR codes and issuer records show whether each document is genuine and unaltered.</p></div>
+    <div><h3>3. Compare</h3><p>Survey numbers, areas, dates and intake are cross-checked between documents and the regulator record.</p></div>
+  </div>
+  <div class="ladder7">
+    <h2>How a status is decided</h2>
+    <p>Every value gets exactly one status. The checks run in this order and the first one that applies decides. Verified is only possible when nothing above it applies, and an outage is never counted as a pass.</p>
+    <ol class="steps" id="steps"></ol>
+  </div>
+</section>
+<section id="busy" hidden><div class="busy"><h2 id="busyMsg">Checking the application</h2><ol class="stages" id="stages"></ol></div></section>
+<section id="result" hidden></section>
+<section id="cases" hidden></section>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+function el(t,a,...k){const n=document.createElement(t);for(const[x,v]of Object.entries(a||{})){if(x==="class")n.className=v;else if(x.startsWith("on"))n.addEventListener(x.slice(2),v);else n.setAttribute(x,v)}
+for(const c of k.flat())if(c!=null&&c!==false)n.append(c.nodeType?c:document.createTextNode(String(c)));return n}
+
+/* ---------- icons and status vocabulary ---------- */
+const IC={check:"M5 12.5l4.2 4.2L19 7",x:"M6 6l12 12M18 6L6 18",clock:"M12 3.5a8.5 8.5 0 100 17 8.5 8.5 0 000-17zM12 7.5V12l3 2",
+ minus:"M12 3.5a8.5 8.5 0 100 17 8.5 8.5 0 000-17zM8 12h8",retry:"M19.5 12a7.5 7.5 0 11-2.4-5.5M19.5 4.5v4.5H15",
+ help:"M12 3.5a8.5 8.5 0 100 17 8.5 8.5 0 000-17zM9.7 9.6a2.4 2.4 0 114.2 1.6c-.8.8-1.9 1.2-1.9 2.5M12 16.6v.1",blur:"M4 8h16M6.5 12h11M9 16h6",
+ alert:"M12 4l9 16H3zM12 10v4.5M12 17.5v.1",eye:"M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"};
+function ico(n,sz){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");
+ for(const[k,v]of Object.entries({viewBox:"0 0 24 24",width:sz||14,height:sz||14,"aria-hidden":"true",fill:"none",stroke:"currentColor","stroke-width":"2.4","stroke-linecap":"round","stroke-linejoin":"round"}))s.setAttribute(k,v);
+ const p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",IC[n]);s.append(p);return s}
+/* r = rank (worst first), s = step in the decision order, k = colour key in the spectrum bar */
+const ST={"Contradicted":{c:"red",r:1,s:4,i:"x",k:"Contradicted",m:"Documents disagree, or a document's proof is invalid.",do:"Investigate the conflict with the institution."},
+"Expired":{c:"red",r:2,s:3,i:"clock",k:"Expired",m:"The validity date is before today.",do:"Ask for a current certificate."},
+"Missing":{c:"red",r:3,s:1,i:"minus",k:"Missing",m:"A required value or document was not submitted.",do:"Ask the institution to supply it."},
+"Source unavailable":{c:"blu",r:4,s:5,i:"retry",k:"Source",m:"An issuer or registry could not be reached. Not a pass, not a fail.",do:"Retry later. This is neither a pass nor a fail."},
+"Insufficient evidence":{c:"amb",r:5,s:6,i:"help",k:"Insufficient",m:"No strong proof exists for this value. A person needs to look.",do:"Request better proof, or review by hand."},
+"Blurry scan":{c:"amb",r:6,s:2,i:"blur",k:"Blurry",m:"The page failed the scan-quality gate. Nothing is guessed.",do:"Ask for a clearer scan."},
+"Verified":{c:"grn",r:7,s:7,i:"check",k:"Verified",m:"Authenticated, read reliably, current and consistent.",do:""}};
+const STEPS=[[1,"Missing"],[2,"Blurry scan"],[3,"Expired"],[4,"Contradicted"],[5,"Source unavailable"],[6,"Insufficient evidence"],[7,"Verified"]];
+const ATTN=new Set(["Contradicted","Expired","Missing"]);
+const kind=s=>ATTN.has(s)?"attn":s==="Verified"?"ok":"review";
+const pill=s=>el("span",{class:"pill s-"+ST[s].c},ico(ST[s].i,12),s);
+const plain=t=>t.replace(/^step \d+:\s*/,"").replace(/\s*\|\s*also noted:.*$/,"");
+function parseReason(t){const out=[];for(const part of t.split(" | ")){const m=part.replace(/^also noted:\s*/,"").match(/^step (\d+):\s*(.*)$/);if(m)out.push({step:+m[1],text:m[2]})}return out}
+const human=s=>s?String(s).replace(/_/g," ").replace(/^./,c=>c.toUpperCase()):"";
+const shortLabel=l=>l.replace(/\s*\(.*\)\s*$/,"");
+const AUTHC={"Authenticated":["grn","check"],"Proof invalid":["red","x"],"Proof absent":["amb","help"],"Issuer unreachable":["blu","retry"],"Not software-verifiable":["amb","eye"]};
+
+(function(){$("steps").replaceChildren(...STEPS.map(([n,s])=>el("li",{},el("i",{},"Step "+n),pill(s),ST[s].m)))})();
+
+/* ---------- intake ---------- */
+let files=[],RUNNING=false;
+const size=n=>n>1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";
+function addFiles(fl){for(const f of fl){if(f.type&&f.type!=="application/pdf"&&!/\.pdf$/i.test(f.name))continue;if(!files.some(x=>x.name===f.name&&x.size===f.size))files.push(f)}files=files.slice(0,15);drawList()}
+function drawList(){$("list").replaceChildren(...files.map((f,i)=>el("li",{},el("span",{},f.name),el("span",{class:"sz"},size(f.size)),
+ el("button",{class:"link","aria-label":"Remove "+f.name,onclick:()=>{files.splice(i,1);drawList()}},"remove"))));
+ $("go").disabled=!files.length;$("go").textContent=files.length?"Verify "+files.length+(files.length===1?" document":" documents"):"Verify documents";$("err").textContent=""}
+const drop=$("drop");
+drop.addEventListener("click",()=>$("pick").click());
+drop.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("pick").click()}});
+$("pick").addEventListener("change",e=>{addFiles(e.target.files);e.target.value=""});
+for(const ev of["dragenter","dragover"])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")});
+for(const ev of["dragleave","drop"])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")});
+drop.addEventListener("drop",e=>addFiles(e.dataTransfer.files));
+function opts(){const q=new URLSearchParams();if($("oFire").checked)q.append("outage","fire_department");if($("oAicte").checked)q.append("aicte_outage","true");return q}
+$("go").addEventListener("click",()=>{const fd=new FormData();files.forEach(f=>fd.append("files",f));const q=opts();if($("inst").value.trim())q.set("institution_name",$("inst").value.trim());run("/api/cases?"+q,{method:"POST",body:fd})});
+const TAGS={clean:["Should pass","grn"],forged_qr:["Forged proof","red"],extended_validity:["Altered date","red"],expired_fire_noc:["Expired","red"],
+ intake_mismatch:["Regulator mismatch","red"],survey_mismatch:["Documents disagree","red"],missing_doc:["Broken chain","red"]};
+let SCEN=[];
+(async()=>{try{SCEN=await(await fetch("/api/scenarios")).json();
+ $("samples").replaceChildren(...SCEN.map(s=>{const [t,c]=TAGS[s.id]||["","amb"];
+  return el("div",{class:"sc t-"+c},el("button",{onclick:()=>run("/api/demo/"+encodeURIComponent(s.id)+"?"+opts(),{method:"POST"})},s.title),
+   t?el("span",{class:"pill s-"+c+" tg"},t):null,el("p",{},s.what))}))}catch(e){$("samples").textContent="Samples could not be loaded."}})();
+$("runAll").addEventListener("click",async e=>{if(RUNNING||!SCEN.length)return;RUNNING=true;const b=e.currentTarget;b.disabled=true;
+ try{for(let i=0;i<SCEN.length;i++){b.textContent="Running sample "+(i+1)+" of "+SCEN.length+"...";const r=await getJSON("/api/demo/"+encodeURIComponent(SCEN[i].id)+"?"+opts(),{method:"POST"});CACHE[r.case_id]=r}
+  location.hash="#/cases"}
+ catch(err){$("err").textContent=err.message}finally{RUNNING=false;b.disabled=false;b.textContent="Run all samples and open the case list"}});
+
+/* ---------- plumbing ---------- */
+const API="/api/cases/";
+const CACHE={};                       // case_id -> report (reports never change once made)
+let CASE=null,REVIEW=null,SEL=null,VIEW=null,DOCS=[],ISSUES=[],FILTER="issues",ZOOM=1;
+const STATE_LABEL={new:["Not reviewed","blu"],in_review:["In review","amb"],clarification_requested:["Waiting on institution","amb"],approved:["Approved by reviewer","grn"]};
+const KIND_LABEL={comment:"Comment",clarify:"Clarification requested",resolve:"Clarification resolved",attest:"Checked by hand",approve:"Case approved"};
+const when=iso=>{try{return new Date(iso).toLocaleString([],{dateStyle:"medium",timeStyle:"short"})}catch(e){return iso}};
+async function getJSON(u,o){const r=await fetch(u,o);const b=await r.json().catch(()=>({}));
+ if(!r.ok){const d=b.detail;throw new Error(Array.isArray(d)?d.map(x=>x.msg).join("; "):d||"Something went wrong ("+r.status+")")}return b}
+const who=$("who");try{who.value=localStorage.getItem("saakshya.reviewer")||""}catch(e){}
+who.addEventListener("input",()=>{try{localStorage.setItem("saakshya.reviewer",who.value)}catch(e){}});
+
+/* ---------- views and routing ---------- */
+const VIEWS=["intake","busy","result","cases"];
+function view(n){for(const v of VIEWS)$(v).hidden=v!==n;for(const e of[$("main"),$("hdr")])e.classList.toggle("wide",n==="result"||n==="cases");$("whoWrap").hidden=n!=="result";
+ const cur=(a,on)=>on?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current");cur($("nNew"),n==="intake"||n==="busy");cur($("nCases"),n==="cases"||n==="result");window.scrollTo(0,0)}
+function route(){const h=location.hash;
+ if(h.startsWith("#/case/"))openCase(decodeURIComponent(h.slice(7)));else if(h==="#/cases")showCases();else view("intake")}
+window.addEventListener("hashchange",route);
+
+const STAGES=["Reading every page","Checking each document's proof","Comparing across documents and the regulator record","Applying the rules and setting statuses"];
+async function run(url,o){if(RUNNING)return;RUNNING=true;$("err").textContent="";
+ let i=0,shown=false;const draw=()=>$("stages").replaceChildren(...STAGES.map((s,j)=>el("li",{class:j<i?"done":j===i?"on":""},s)));
+ const show=setTimeout(()=>{shown=true;draw();view("busy")},350),tick=setInterval(()=>{if(i<STAGES.length-1){i++;if(shown)draw()}},1100);
+ try{const b=await getJSON(url,o);CACHE[b.case_id]=b;const h="#/case/"+b.case_id;if(location.hash===h)route();else location.hash=h}
+ catch(e){view("intake");$("err").textContent=e.message}finally{clearTimeout(show);clearInterval(tick);RUNNING=false}}
+
+/* ---------- triage list ---------- */
+function mixBar(counts,missing){const seq=["Contradicted","Expired","Missing","Source unavailable","Insufficient evidence","Blurry scan","Verified"];
+ return el("div",{class:"mini",role:"img","aria-label":seq.map(s=>(s==="Missing"?missing:counts[s]||0)+" "+s).join(", ")},
+  ...seq.map(s=>{const n=s==="Missing"?missing:(counts[s]||0);return n?el("i",{class:"k-"+ST[s].k,style:"flex:"+n+" 1 0%",title:n+" "+s}):null}))}
+async function showCases(){view("cases");$("cases").replaceChildren(el("div",{class:"card"},"Loading cases..."));
+ try{const rows=await getJSON("/api/cases");const max=Math.max(1,...rows.map(r=>r.risk));
+  const th=(t,c)=>el("th",{scope:"col",class:c||""},t);
+  const needs=rows.filter(r=>r.attention>0).length;
+  $("cases").replaceChildren(el("h1",{},"Cases"),
+   el("p",{class:"lead",style:"margin-bottom:0"},"Highest risk first. The risk score is a weighted count of problems. It only decides the order of this list and never changes a status."),
+   rows.length?el("div",{class:"kpis"},...[[rows.length,"cases checked"],[needs,"need attention"],[rows.length-needs,"without conflicts"]].map(([n,l])=>el("div",{class:"kpi"},el("b",{},n),el("span",{},l)))):null,
+   rows.length?el("div",{style:"overflow-x:auto"},el("table",{class:"cases"},el("thead",{},el("tr",{},th("Risk"),th("Institution"),th("Needs attention"),th("Mix","hide-s"),th("Manual review","hide-s"),th("Verified","hide-s"),th("Documents","hide-s"),th("Review"))),
+    el("tbody",{},...rows.map(r=>{const [sl,sc]=STATE_LABEL[r.review_state]||["?","blu"];
+     return el("tr",{},el("td",{},el("div",{class:"risk"},el("b",{},r.risk),el("div",{class:"bar2","aria-hidden":"true"},el("i",{style:"width:"+Math.round(r.risk/max*100)+"%"})))),
+      el("td",{},el("a",{href:"#/case/"+encodeURIComponent(r.case_id)},r.institution),el("div",{class:"muted"},when(r.created_at))),
+      el("td",{class:r.attention?"n-red":""},r.attention),el("td",{class:"hide-s"},mixBar(r.counts,r.missing)),el("td",{class:"hide-s"+(r.manual?" n-amb":"")},r.manual),el("td",{class:"hide-s n-grn"},r.verified),el("td",{class:"hide-s"},r.documents),
+      el("td",{},el("span",{class:"pill s-"+sc},sl),r.open_clarifications?el("div",{class:"muted"},r.open_clarifications+" open question(s)"):null))})))):
+   el("div",{class:"card",style:"margin-top:16px"},el("b",{},"No cases yet."),el("p",{class:"muted",style:"margin:4px 0 12px"},"Cases appear here after you check an application. They are kept in memory, so a server restart clears them."),
+    el("button",{class:"primary",onclick:()=>{location.hash="#/";setTimeout(()=>$("runAll").click(),50)}},"Run all samples"),
+    " ",el("a",{href:"#/"},"or check your own files")))}
+ catch(e){$("cases").replaceChildren(el("div",{class:"card"},el("b",{},"Could not load cases."),el("p",{class:"muted"},e.message)))}}
+
+/* ---------- one case ---------- */
+async function openCase(id){view("result");$("result").replaceChildren(el("div",{class:"card"},"Opening case..."));
+ try{const [rep,rev]=await Promise.all([CACHE[id]?Promise.resolve(CACHE[id]):getJSON(API+encodeURIComponent(id)),getJSON(API+encodeURIComponent(id)+"/review")]);
+  CACHE[id]=rep;CASE=rep;REVIEW=rev;FILTER="issues";ZOOM=1;renderCase()}
+ catch(e){$("result").replaceChildren(el("div",{class:"card"},el("b",{},"Could not open this case."),el("p",{class:"muted"},e.message),el("a",{href:"#/cases"},"Back to cases")))}}
+
+const pageUrl=(d,p)=>API+encodeURIComponent(CASE.case_id)+"/documents/"+encodeURIComponent(d)+"/pages/"+p;
+
+function renderCase(){const r=CASE;
+ const byDoc={};r.findings.forEach(f=>(byDoc[f.document_id]=byDoc[f.document_id]||[]).push(f));
+ const n={attn:0,review:0,ok:0};r.findings.forEach(f=>n[kind(f.status)]++);const missingN=r.missing_documents.length;n.attn+=missingN;
+ const C=r.counts;
+ DOCS=r.documents.map(d=>{const fs=byDoc[d.id]||[];const worst=fs.reduce((w,f)=>ST[f.status].r<ST[w].r?f.status:w,"Verified");return {d,worst,fs}}).sort((a,b)=>ST[a.worst].r-ST[b.worst].r);
+ ISSUES=r.findings.filter(f=>f.status!=="Verified").sort((a,b)=>ST[a.status].r-ST[b.status].r).map(f=>f.finding_id);
+ const bits=[];if(C.Contradicted)bits.push(C.Contradicted+" contradicted");if(C.Expired)bits.push(C.Expired+" expired");if(missingN)bits.push(missingN+(missingN===1?" document":" documents")+" missing");
+ const V=n.attn?["v-red","alert","Needs attention",bits.join(", ")+". Start with these."]:n.review?["v-amb","eye","Needs manual review","Nothing contradicts, but "+n.review+" values could not be confirmed automatically."]:["v-grn","check","All checks passed","Every document was authenticated and consistent."];
+ const seq=["Contradicted","Expired","Missing","Source unavailable","Insufficient evidence","Blurry scan","Verified"];
+ const cnt=s=>s==="Missing"?missingN:(C[s]||0);
+ const spec=el("div",{class:"spec",role:"img","aria-label":seq.map(s=>cnt(s)+" "+s).join(", ")},...seq.filter(s=>cnt(s)).map(s=>el("i",{class:"k-"+ST[s].k,style:"--n:"+cnt(s),title:cnt(s)+" "+s})));
+ requestAnimationFrame(()=>requestAnimationFrame(()=>spec.classList.add("in")));
+ const total=seq.reduce((a,s)=>a+cnt(s),0);
+ const summary=el("div",{class:"summary"},
+  el("div",{class:"verdict "+V[0]},el("div",{class:"vi"},ico(V[1],26)),el("div",{},el("h1",{},V[2]),el("p",{},r.institution||""),V[3]?el("p",{style:"font-size:14.5px"},V[3]):null,
+   el("div",{class:"meta"},el("span",{},"Checked "+r.date),el("span",{},r.documents.length+" documents"),el("span",{},"Case "+r.case_id.slice(-8))))),
+  el("div",{class:"mixp"},el("b",{},"Status of all "+total+" values and required documents"),spec,
+   el("div",{class:"lg"},...seq.filter(s=>cnt(s)).map(s=>el("span",{},el("u",{class:"k-"+ST[s].k}),el("em",{},cnt(s)),s)))));
+ const tiles=DOCS.map(({d,worst})=>el("button",{class:"tile t-"+ST[worst].c,"data-doc":d.id,title:d.label+": "+worst,"aria-label":d.label+", "+worst,onclick:()=>jumpDoc(d.id)},
+   el("span",{class:"pg"},el("img",{src:pageUrl(d.id,1),alt:"",loading:"lazy",onerror:e=>e.target.remove()}),el("span",{class:"bd"},ico(ST[worst].i,12))),el("span",{class:"nm"},shortLabel(d.label))));
+ const ghosts=r.missing_documents.map(m=>el("div",{class:"tile ghost",title:m.label+": not submitted"},el("span",{class:"pg"},"Not submitted"),el("span",{class:"nm"},shortLabel(m.label))));
+ const dossier=el("div",{class:"dossier"},el("div",{class:"dh"},el("h2",{},"The application at a glance"),el("span",{class:"muted"},"Border shows the worst status in each document. Click one to open it.")),el("div",{class:"strip"},...tiles,...ghosts));
+ const issues=[...r.case_issues.map(i=>i.text),...r.unrecognised_files.map(u=>u.filename+": "+u.reason)];
+ const chip=(k,l,c)=>el("button",{"data-flt":"","aria-pressed":String(FILTER===k),onclick:()=>{FILTER=k;drawChips();drawDocs()},id:"fl-"+k},l,el("b",{},c));
+ const left=el("div",{class:"left"},
+  el("div",{class:"acts"},el("button",{class:"primary",onclick:()=>{location.hash="#/"}},"Check another application"),el("button",{onclick:()=>{location.hash="#/cases"}},"All cases"),el("button",{onclick:()=>window.print()},"Print report"),el("button",{onclick:downloadJSON},"Download JSON")),
+  reviewPanel(),
+  missingN?el("div",{class:"card",style:"margin-bottom:10px"},el("b",{},"Required documents not submitted"),el("ul",{class:"issues"},...r.missing_documents.map(m=>el("li",{},pill("Missing")," ",m.label," ",el("span",{class:"todo"},"Next step: "+ST.Missing.do))))):null,
+  issues.length?el("div",{class:"card",style:"margin-bottom:10px"},el("b",{},"Also noted"),el("ul",{class:"issues"},...issues.map(t=>el("li",{},t)))):null,
+  el("div",{class:"flt",role:"group","aria-label":"Show findings"},el("h2",{},"Documents"),chip("issues","Needs a look",n.attn-missingN+n.review),chip("attn","Attention",n.attn-missingN),chip("review","Manual review",n.review),chip("ok","Verified",n.ok),chip("all","All",r.findings.length)),
+  el("div",{id:"docs"}),
+  el("p",{class:"muted",style:"margin-top:14px"},r.notes.join(" ")));
+ $("result").replaceChildren(summary,dossier,el("div",{class:"case"},left,viewerShell()));
+ drawChips();drawDocs();drawReviewHead();
+ const worst=ISSUES.length?r.findings.find(f=>f.finding_id===ISSUES[0]):r.findings[0];
+ SEL=null;VIEW=r.documents.length?{doc:r.documents[0].id,page:1}:null;
+ if(worst)select(worst.finding_id,{quiet:true});else drawViewer(false)}
+
+function drawChips(){document.querySelectorAll("[id^=fl-]").forEach(b=>b.setAttribute("aria-pressed",String(b.id==="fl-"+FILTER)))}
+function downloadJSON(){const b=new Blob([JSON.stringify(CASE,null,2)],{type:"application/json"});const a=el("a",{href:URL.createObjectURL(b),download:"docubrus-"+CASE.case_id+".json"});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+function jumpDoc(id){const e=DOCS.find(x=>x.d.id===id);const f=e.fs.filter(x=>x.status!=="Verified").sort((a,b)=>ST[a.status].r-ST[b.status].r)[0]||e.fs[0];
+ if(f){select(f.finding_id,{scroll:true})}else{VIEW={doc:id,page:1};drawViewer(false)}
+ const row=f&&$("f-"+f.finding_id);if(!row){const c=document.querySelector('[data-docid="'+id+'"]');if(c){c.open=true;c.scrollIntoView({behavior:"smooth",block:"start"})}}}
+
+function drawDocs(){const box=$("docs");const sel=SEL;
+ const cards=DOCS.map(({d,worst,fs})=>{
+  const show=f=>FILTER==="all"||(FILTER==="issues"?f.status!=="Verified":kind(f.status)===FILTER);
+  const vis=fs.filter(show),goodHidden=FILTER==="issues"?fs.filter(f=>f.status==="Verified"):[];
+  if(!fs.length){if(FILTER!=="issues"&&FILTER!=="all")return null}
+  else{if(!vis.length&&!goodHidden.length)return null;if(!vis.length&&FILTER!=="issues")return null}
+  const open=worst!=="Verified"||FILTER==="ok"||FILTER==="all";
+  const auth=AUTHC[d.auth_result]||["blu","help"];
+  const nBad=fs.filter(f=>f.status!=="Verified").length;
+  return el("details",{class:"card doc t-"+ST[worst].c,"data-docid":d.id,...(open?{open:""}:{})},
+   el("summary",{},el("div",{class:"t"},d.label,el("small",{},d.filename)),nBad?el("span",{class:"muted"},nBad+(nBad===1?" issue":" issues")):null,pill(worst),el("span",{class:"chev","aria-hidden":"true"},"▸")),
+   el("div",{class:"body"},
+    el("div",{class:"proof"},el("div",{},el("span",{class:"lab"},"Proof"),el("span",{class:"pill s-"+auth[0]},ico(auth[1],12),d.auth_result),d.issuer?el("span",{class:"muted"},"issued by "+human(d.issuer)):null),
+     ...(d.scanned?[el("div",{class:"muted"},"Scanned copy, read by OCR: "+d.page_quality.map(q=>"page "+q.page+" "+Math.round(q.confidence)+"%"+(q.ok?"":" (unclear)")).join(", "))]:[]),
+     ...d.checks.map(c=>el("div",{},el("span",{class:"k "+(c.passed===true?"ok":c.passed===false?"no":"sk")},c.passed===true?"PASS":c.passed===false?"FAIL":"SKIP"),el("span",{},c.name+": "+c.detail))),
+     ...(d.problems.length&&!d.checks.length?[el("div",{class:"muted"},d.problems.join("; "))]:[]),...d.flags.map(x=>el("div",{class:"muted"},"Flag: "+x))),
+    ...groups(vis).map(group),
+    goodHidden.length?el("details",{},el("summary",{class:"muted",style:"cursor:pointer;margin-top:8px"},goodHidden.length+" field(s) verified"),...groups(goodHidden).map(group)):null))}).filter(Boolean);
+ box.replaceChildren(...(cards.length?cards:[el("div",{class:"card empty"},"Nothing in this group.")]));
+ drawThreads();if(sel){const row=$("f-"+sel);if(row)row.classList.add("sel")}}
+
+function ladder(f){const ps=parseReason(f.reason);if(!ps.length)return null;const by={};ps.forEach((p,i)=>by[p.step]={...p,primary:i===0});
+ return el("details",{class:"lad"},el("summary",{},"How was this decided?"),
+  el("ol",{class:"lad"},...STEPS.map(([n,s])=>{const p=by[n];return el("li",{class:p?(p.primary?"dec":"also1"):""},el("i",{},n),el("span",{},s),
+   el("span",{},p?(p.primary?"Decided here. ":"Also applies. ")+p.text:"Does not apply.")) })))}
+
+function findingRow(f){
+ return el("div",{class:"fi",id:"f-"+f.finding_id},
+  el("div",{class:"h"},el("span",{class:"lb"},f.field_label+":"),el("span",{class:"v"},f.value),el("span",{class:"loc"},"page "+f.page+(f.confidence!=null?", OCR "+Math.round(f.confidence)+"%":"")),
+   el("span",{class:"badges","data-b":f.finding_id}),
+   el("button",{class:"show","aria-label":"Show "+f.field_label+" on the page",onclick:()=>select(f.finding_id)},"Show on page")),
+  el("div",{class:"thread","data-f":f.finding_id}),
+  actionBox(f.finding_id,["comment","clarify","attest"]))}
+/* fields in one document that share a status and a reason are shown once, with their fields listed under it */
+function groups(list){const m=new Map();for(const f of list){const k=f.status+"|"+f.reason;if(!m.has(k))m.set(k,[]);m.get(k).push(f)}return [...m.values()].sort((a,b)=>ST[a[0].status].r-ST[b[0].status].r)}
+function group(list){const f=list[0],ok=f.status==="Verified";
+ return el("div",{class:"grp"},
+  el("div",{class:"gh"},pill(f.status),el("span",{class:"muted"},list.length+(list.length===1?" value":" values"))),
+  el("p",{class:ok?"todo":"why"},plain(f.reason)),
+  !ok&&ST[f.status].do?el("p",{class:"todo"},el("b",{},"Next step: "),ST[f.status].do):null,
+  ladder(f),
+  el("div",{class:"rows"},...list.map(findingRow)))}
+
+/* ---------- page viewer ---------- */
+function viewerShell(){
+ return el("aside",{class:"card viewer",id:"viewer","aria-label":"Page viewer"},
+  el("div",{class:"vh"},el("select",{id:"vDoc","aria-label":"Document",onchange:e=>{VIEW={doc:e.target.value,page:1};drawViewer(false)}},...CASE.documents.map(d=>el("option",{value:d.id},d.label))),
+   el("button",{id:"vPrev","aria-label":"Previous page",onclick:()=>turn(-1)},"◀"),el("span",{id:"vPg",class:"muted"}),el("button",{id:"vNext","aria-label":"Next page",onclick:()=>turn(1)},"▶"),
+   el("span",{class:"sep","aria-hidden":"true"}),el("button",{"aria-label":"Zoom out",onclick:()=>zoom(-.25)},"−"),el("button",{"aria-label":"Zoom in",onclick:()=>zoom(.25)},"+"),
+   el("a",{id:"vOpen",href:"#",target:"_blank",rel:"noopener",class:"muted"},"full size")),
+  el("div",{class:"cap",id:"vCap","aria-live":"polite"}),
+  el("div",{class:"scroller",id:"scroller"},el("div",{class:"sheet",id:"sheet"})),
+  el("div",{class:"legend"},...[["red","Contradicted, expired or missing"],["amb","Manual review"],["blu","Source unavailable"],["grn","Verified"]].map(([c,t])=>el("span",{class:c},el("i"),t)),
+   el("span",{class:"keys"},el("kbd",{},"J"),el("kbd",{},"K"),"next or previous issue")))}
+function zoom(d){ZOOM=Math.min(3,Math.max(1,ZOOM+d));$("sheet").style.width=ZOOM*100+"%"}
+function turn(d){const doc=CASE.documents.find(x=>x.id===VIEW.doc);VIEW.page=Math.min(doc.pages,Math.max(1,VIEW.page+d));drawViewer(false)}
+function select(fid,o={}){const f=CASE.findings.find(x=>x.finding_id===fid);if(!f)return;SEL=fid;VIEW={doc:f.document_id,page:f.page};
+ document.querySelectorAll(".fi.sel").forEach(x=>x.classList.remove("sel"));
+ const row=$("f-"+fid);if(row){row.classList.add("sel");for(let p=row.parentElement;p;p=p.parentElement)if(p.tagName==="DETAILS")p.open=true;
+  if(o.fromViewer||o.scroll)row.scrollIntoView({block:"center",behavior:"smooth"})}
+ document.querySelectorAll(".tile.cur").forEach(x=>x.classList.remove("cur"));const t=document.querySelector('.tile[data-doc="'+f.document_id+'"]');if(t)t.classList.add("cur");
+ drawViewer(true);if(!o.fromViewer&&!o.quiet&&!o.scroll&&innerWidth<=1000)$("viewer").scrollIntoView({behavior:"smooth",block:"start"})}
+function jump(d){if(!ISSUES.length)return;const i=ISSUES.indexOf(SEL);const j=i<0?(d>0?0:ISSUES.length-1):(i+d+ISSUES.length)%ISSUES.length;select(ISSUES[j],{scroll:true})}
+document.addEventListener("keydown",e=>{if(e.metaKey||e.ctrlKey||e.altKey||!CASE||$("result").hidden)return;const t=e.target;if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return;
+ if(e.key==="j"||e.key==="J")jump(1);else if(e.key==="k"||e.key==="K")jump(-1)});
+function drawCap(){const f=CASE.findings.find(x=>x.finding_id===SEL);const c=$("vCap");
+ if(!f){c.replaceChildren("Select a finding to see where it sits on the page.");return}
+ c.replaceChildren(el("div",{class:"h"},pill(f.status),el("b",{},f.field_label+": "+f.value)),el("div",{class:"muted",style:"margin-top:3px"},plain(f.reason)))}
+function drawViewer(scrollToSel){const d=VIEW&&CASE.documents.find(x=>x.id===VIEW.doc),sheet=$("sheet");drawCap();
+ if(!d){sheet.replaceChildren(el("div",{class:"gone"},"No documents were read."));return}
+ const ps=(d.page_sizes||[]).find(p=>p.page===VIEW.page);
+ $("vDoc").value=d.id;$("vPg").textContent="page "+VIEW.page+" of "+d.pages;$("vPrev").disabled=VIEW.page<=1;$("vNext").disabled=VIEW.page>=d.pages;
+ const url=pageUrl(d.id,VIEW.page);$("vOpen").href=url;
+ sheet.style.aspectRatio=ps?ps.width+" / "+ps.height:"210 / 297";sheet.style.width=ZOOM*100+"%";
+ const img=el("img",{src:url,alt:d.label+", page "+VIEW.page});
+ img.addEventListener("error",()=>sheet.replaceChildren(el("div",{class:"gone"},"The original PDF is no longer held by the server (files are kept in memory only), so this page can't be shown.")));
+ const boxes=ps?CASE.findings.filter(f=>f.document_id===d.id&&f.page===VIEW.page).map(f=>{const [x0,y0,x1,y1]=f.bbox,pc=(a,t)=>(a/t*100).toFixed(3)+"%";
+  return el("button",{class:"bx "+ST[f.status].c+(f.finding_id===SEL?" sel":"")+(y0/ps.height<.06?" below":"")+(x0/ps.width>.55?" rt":""),
+   style:`left:${pc(x0,ps.width)};top:${pc(y0,ps.height)};width:${pc(x1-x0,ps.width)};height:${pc(y1-y0,ps.height)}`,
+   "aria-label":f.field_label+": "+f.value+" ("+f.status+")",title:f.field_label+": "+f.value+" ("+f.status+")",onclick:()=>select(f.finding_id,{fromViewer:true})},
+   el("span",{class:"chip"},el("span",{},f.field_label+" · "+f.status)))}):[];
+ sheet.replaceChildren(img,...boxes);
+ const sc=$("scroller");sc.scrollTop=0;sc.scrollLeft=0;
+ if(scrollToSel)requestAnimationFrame(()=>{const b=sheet.querySelector(".bx.sel");if(b)sc.scrollTo({top:Math.max(0,b.offsetTop+sheet.offsetTop-sc.clientHeight/3),left:Math.max(0,b.offsetLeft-sc.clientWidth/3),behavior:"smooth"})})}
+
+/* ---------- reviewer actions ---------- */
+function reviewPanel(){
+ return el("div",{class:"card panel"},el("div",{class:"top"},el("b",{},"Reviewer decision"),el("span",{id:"rvState"}),el("span",{class:"muted",id:"rvOpen"})),
+  el("p",{class:"muted",style:"margin:6px 0 0"},"Everything you record is saved with your name and the time. It never changes an automatic status."),
+  actionBox(null,["approve","clarify","comment"],false),el("div",{class:"thread","data-f":"case"}))}
+function actionBox(fid,kinds,open){
+ const ta=el("textarea",{maxlength:"2000","aria-label":"Note",placeholder:fid?"Write a note for the record...":"Write a note. It is required to approve a case that still has problems."});
+ const err=el("div",{class:"e",role:"alert"});
+ const L={comment:"Add comment",clarify:"Ask institution to clarify",attest:"I checked this by hand",approve:"Approve case"};
+ const btns=kinds.map(k=>el("button",{class:k==="approve"?"primary":"",onclick:async e=>{const b=e.currentTarget;b.disabled=true;err.textContent="";
+   if(await send({kind:k,finding_id:fid,note:ta.value},err))ta.value="";b.disabled=false}},L[k]));
+ return el("details",{class:"act",...(open?{open:""}:{})},el("summary",{},fid?"Review this item":"Record a decision or comment"),
+  el("div",{class:"actbox"},ta,el("div",{class:"btns"},...btns),
+   kinds.includes("attest")?el("div",{class:"hint"},"“Checked by hand” records that you verified this yourself. The automatic status stays as it is."):null,err))}
+async function send(body,err){const actor=who.value.trim();
+ if(!actor){err.textContent="Enter your name at the top of the page first.";who.focus();return false}
+ try{const b=await getJSON(API+encodeURIComponent(CASE.case_id)+"/actions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({actor,...body})});
+  REVIEW={state:b.state,actions:b.actions};drawThreads();drawReviewHead();return true}
+ catch(e){err.textContent=e.message;return false}}
+function actionItem(a){const open=a.kind==="clarify"&&!REVIEW.state.resolved_ids.includes(a.id);
+ const label=KIND_LABEL[a.kind]+(a.kind==="clarify"?(open?" (open)":" (resolved)"):"");const e=el("span",{class:"e",role:"alert"});
+ return el("div",{class:"ai k-"+a.kind},el("div",{class:"m"},el("b",{},label)," · "+a.actor+" · "+when(a.created_at)),a.note?el("p",{},a.note):null,
+  open?el("button",{class:"link",onclick:async ev=>{ev.currentTarget.disabled=true;e.textContent="";if(!await send({kind:"resolve",finding_id:a.finding_id,resolves_id:a.id},e))ev.currentTarget.disabled=false}},"Mark resolved"):null,e)}
+function drawThreads(){document.querySelectorAll(".thread[data-f]").forEach(c=>{const k=c.dataset.f;
+  c.replaceChildren(...REVIEW.actions.filter(a=>k==="case"?!a.finding_id:a.finding_id===k).map(actionItem))});
+ document.querySelectorAll("[data-b]").forEach(c=>{const s=REVIEW.state.by_finding[c.dataset.b]||{};
+  c.replaceChildren(...[s.attested?el("span",{class:"pill s-blu"},"Checked by hand"):null,s.open_clarifications?el("span",{class:"pill s-amb"},"Question open"):null].filter(Boolean))})}
+function drawReviewHead(){const [t,c]=STATE_LABEL[REVIEW.state.case];$("rvState").replaceChildren(el("span",{class:"pill s-"+c},t));
+ $("rvOpen").textContent=REVIEW.state.open_clarifications?REVIEW.state.open_clarifications+" open clarification(s)":""}
+route();
+</script>
+</body>
+</html>

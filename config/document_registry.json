@@ -1,0 +1,231 @@
+{
+  "_note": "Regulator-editable registry. Defines, per document type, what it must contain, how its proof is verified and which facts must agree with other documents. ILLUSTRATIVE: document lists, fields and thresholds are examples until each is checked against the official Approval Process Handbook. 'route_confirmed: false' means the real verification route for that issuer is still to be confirmed.",
+  "schema_version": 1,
+
+  "shared_keys": {
+    "legal_name":          {"label": "Applicant's legal name",               "type": "text",    "compare": "name"},
+    "registration_number": {"label": "Society / trust registration number",  "type": "text",    "compare": "identifier"},
+    "survey_no":           {"label": "Land survey number",                   "type": "text",    "compare": "survey"},
+    "land_owner":          {"label": "Owner of the land",                    "type": "text",    "compare": "name"},
+    "land_area_acres":     {"label": "Land area (acres)",                    "type": "number",  "compare": "number", "tolerance": {"abs": 0.01}},
+    "built_up_area_sqm":   {"label": "Built-up area (sq m)",                 "type": "number",  "compare": "number", "tolerance": {"rel": 0.01}},
+    "address":             {"label": "Institution address",                  "type": "text",    "compare": "address"},
+    "approved_intake":     {"label": "Approved intake",                      "type": "integer", "compare": "number", "tolerance": {"abs": 0}}
+  },
+
+  "relations": [
+    {"id": "land_owner_is_applicant", "left": "land_owner", "right": "legal_name",
+     "meaning": "The land must stand in the applicant's name (a documented lease would be the exception).", "illustrative": true}
+  ],
+
+  "date_chain": {
+    "meaning": "These dates must be in this order (equal dates allowed). Each step needs the previous document to exist.",
+    "steps": [
+      {"doc_type": "land_deed",             "field": "registration_date"},
+      {"doc_type": "land_use_certificate",  "field": "issue_date"},
+      {"doc_type": "building_plan",         "field": "approval_date"},
+      {"doc_type": "occupancy_certificate", "field": "issue_date"}
+    ],
+    "illustrative": true
+  },
+
+  "document_types": {
+
+    "application_form": {
+      "label": "Application form (applicant's own declaration)",
+      "proof": {"kind": "self_declared"},
+      "verifier_route": "manual_review",
+      "route_confirmed": true,
+      "required_sources": [],
+      "number_field": null,
+      "holder_field": "holder_name",
+      "bind_fields": [],
+      "fields": {
+        "holder_name":         {"label": "Applicant name",       "type": "text",    "required": true,  "shared_key": "legal_name",          "labels": ["Name of the Applicant", "Name of Trust/Society"]},
+        "registration_number": {"label": "Registration number",  "type": "text",    "required": true,  "shared_key": "registration_number", "labels": ["Registration No", "Society Registration No"]},
+        "survey_no":           {"label": "Survey number",        "type": "text",    "required": true,  "shared_key": "survey_no",           "labels": ["Survey No", "Survey Number"]},
+        "land_area_acres":     {"label": "Land area (acres)",    "type": "number",  "required": true,  "shared_key": "land_area_acres",     "labels": ["Land Area", "Total Land (acres)"]},
+        "built_up_area_sqm":   {"label": "Built-up area (sq m)", "type": "number",  "required": true,  "shared_key": "built_up_area_sqm",   "labels": ["Built-up Area", "Built up Area (sq m)"]},
+        "address":             {"label": "Address",              "type": "text",    "required": true,  "shared_key": "address",             "labels": ["Address of the Institution", "Institution Address"]},
+        "approved_intake":     {"label": "Intake sought",        "type": "integer", "required": true,  "shared_key": "approved_intake",     "labels": ["Intake", "Proposed Intake"]}
+      }
+    },
+
+    "society_registration": {
+      "label": "Society / trust registration certificate",
+      "proof": {"kind": "signed_qr", "issuer_id": "registrar_societies", "lookup_required": true},
+      "verifier_route": "proof_verifier",
+      "route_confirmed": false,
+      "required_sources": ["mock_issuer:registrar_societies"],
+      "number_field": "document_number",
+      "holder_field": "holder_name",
+      "bind_fields": ["registration_date"],
+      "fields": {
+        "document_number":   {"label": "Registration number", "type": "text", "required": true,  "shared_key": "registration_number", "labels": ["Registration No", "Reg. No", "Certificate No"]},
+        "holder_name":       {"label": "Registered name",     "type": "text", "required": true,  "shared_key": "legal_name",          "labels": ["Name of the Society", "Name of the Trust"]},
+        "registration_date": {"label": "Date of registration","type": "date", "required": true,  "labels": ["Date of Registration", "Registered on"]},
+        "registered_address":{"label": "Registered address",  "type": "text", "required": false, "shared_key": "address",             "labels": ["Registered Office", "Address"]}
+      }
+    },
+
+    "land_deed": {
+      "label": "Land sale deed / registered lease",
+      "proof": {"kind": "signed_qr", "issuer_id": "sub_registrar", "lookup_required": true},
+      "verifier_route": "proof_verifier",
+      "route_confirmed": false,
+      "required_sources": ["mock_issuer:sub_registrar"],
+      "number_field": "document_number",
+      "holder_field": "holder_name",
+      "bind_fields": ["survey_no", "land_area_acres", "registration_date"],
+      "fields": {
+        "document_number":   {"label": "Document number",   "type": "text",   "required": true, "labels": ["Document No", "Registration No", "Doc. No"]},
+        "holder_name":       {"label": "Owner / purchaser", "type": "text",   "required": true, "shared_key": "land_owner",      "labels": ["Purchaser", "Name of the Owner", "Lessee"]},
+        "survey_no":         {"label": "Survey number",     "type": "text",   "required": true, "shared_key": "survey_no",       "labels": ["Survey No", "Survey Number", "S.No"]},
+        "land_area_acres":   {"label": "Land area (acres)", "type": "number", "required": true, "shared_key": "land_area_acres", "labels": ["Extent", "Area", "Total Extent (acres)"]},
+        "registration_date": {"label": "Date of registration","type": "date", "required": true, "labels": ["Date of Registration", "Registered on"]}
+      }
+    },
+
+    "encumbrance_certificate": {
+      "label": "Encumbrance certificate",
+      "proof": {"kind": "signed_qr", "issuer_id": "sub_registrar", "lookup_required": true},
+      "verifier_route": "proof_verifier",
+      "route_confirmed": false,
+      "required_sources": ["mock_issuer:sub_registrar"],
+      "number_field": "document_number",
+      "holder_field": "holder_name",
+      "bind_fields": ["survey_no", "issue_date"],
+      "max_age_days": 90,
+      "fields": {
+        "document_number": {"label": "Certificate number", "type": "text", "required": true, "labels": ["Certificate No", "EC No"]},
+        "holder_name":     {"label": "Owner",              "type": "text", "required": true, "shared_key": "land_owner", "labels": ["Name of the Owner", "Applicant"]},
+        "survey_no":       {"label": "Survey number",      "type": "text", "required": true, "shared_key": "survey_no",  "labels": ["Survey No", "Survey Number"]},
+        "issue_date":      {"label": "Date of issue",      "type": "date", "required": true, "labels": ["Date of Issue", "Issued on"]}
+      }
+    },
+
+    "land_use_certificate": {
+      "label": "Land use / conversion certificate",
+      "proof": {"kind": "signed_qr", "issuer_id": "revenue_authority", "lookup_required": true},
+      "verifier_route": "proof_verifier",
+      "route_confirmed": false,
+      "required_sources": ["mock_issuer:revenue_authority"],
+      "number_field": "document_number",
+      "holder_field": "holder_name",
+      "bind_fields": ["survey_no", "land_area_acres", "issue_date"],
+      "fields": {
+        "document_number": {"label": "Order number",     "type": "text",   "required": true, "labels": ["Order No", "Proceedings No", "Certificate No"]},
+        "holder_name":     {"label": "Land holder",      "type": "text",   "required": true, "shared_key": "land_owner",      "labels": ["Name of the Owner", "Applicant"]},
+        "survey_no":       {"label": "Survey number",    "type": "text",   "required": true, "shared_key": "survey_no",       "labels": ["Survey No", "Survey Number"]},
+        "land_area_acres": {"label": "Land area (acres)","type": "number", "required": true, "shared_key": "land_area_acres", "labels": ["Extent", "Area"]},
+        "permitted_use":   {"label": "Permitted use",    "type": "text",   "required": true, "labels": ["Purpose", "Permitted Use", "Land Use"]},
+        "issue_date":      {"label": "Date of issue",    "type": "date",   "required": true, "labels": ["Date", "Date of Issue"]}
+      }
+    },
+
+    "building_plan": {
+      "label": "Approved building plan",
+      "proof": {"kind": "signed_qr", "issuer_id": "local_body", "lookup_required": true},
+      "verifier_route": "proof_verifier",
+      "route_confirmed": false,
+      "required_sources": ["mock_issuer:local_body"],
+      "number_field": "document_number",
+      "holder_field": "holder_name",
+      "bind_fields": ["survey_no", "built_up_area_sqm", "approval_date"],
+      "fields": {
+        "document_number":   {"label": "Plan approval number", "type": "text",   "required": true, "labels": ["Plan Approval No", "Approval No", "Permit No"]},
+        "holder_name":       {"label": "Applicant",            "type": "text",   "required": true, "shared_key": "legal_name",        "labels": ["Name of the Applicant", "Owner"]},
+        "survey_no":         {"label": "Survey number",        "type": "text",   "required": true, "shared_key": "survey_no",         "labels": ["Survey No", "Survey Number"]},
+        "built_up_area_sqm": {"label": "Built-up area (sq m)", "type": "number", "required": true, "shared_key": "built_up_area_sqm", "labels": ["Total Built-up Area", "Built up Area"]},
+        "approval_date":     {"label": "Date of approval",     "type": "date",   "required": true, "labels": ["Date of Approval", "Approved on"]}
+      }
+    },
+
+    "occupancy_certificate": {
+      "label": "Occupancy / completion certificate",
+      "proof": {"kind": "signed_qr", "issuer_id": "local_body", "lookup_required": true},
+      "verifier_route": "proof_verifier",
+      "route_confirmed": false,
+      "required_sources": ["mock_issuer:local_body"],
+      "number_field": "document_number",
+      "holder_field": "holder_name",
+      "bind_fields": ["building_plan_number", "built_up_area_sqm", "issue_date"],
+      "references": [
+        {"field": "building_plan_number", "points_to": "building_plan", "points_to_field": "document_number"}
+      ],
+      "fields": {
+        "document_number":      {"label": "Certificate number",    "type": "text",   "required": true, "labels": ["Certificate No", "OC No"]},
+        "holder_name":          {"label": "Owner",                 "type": "text",   "required": true, "shared_key": "legal_name",        "labels": ["Name of the Owner", "Applicant"]},
+        "building_plan_number": {"label": "Building plan number",  "type": "text",   "required": true, "labels": ["Plan Approval No", "Approved Plan No"]},
+        "built_up_area_sqm":    {"label": "Built-up area (sq m)",  "type": "number", "required": true, "shared_key": "built_up_area_sqm", "labels": ["Built-up Area", "Completed Area"]},
+        "issue_date":           {"label": "Date of issue",         "type": "date",   "required": true, "labels": ["Date of Issue", "Issued on"]}
+      }
+    },
+
+    "fire_noc": {
+      "label": "Fire safety NOC",
+      "proof": {"kind": "signed_qr", "issuer_id": "fire_department", "lookup_required": true},
+      "verifier_route": "proof_verifier",
+      "route_confirmed": false,
+      "required_sources": ["mock_issuer:fire_department"],
+      "number_field": "document_number",
+      "holder_field": "holder_name",
+      "bind_fields": ["issue_date", "valid_until"],
+      "validity_field": "valid_until",
+      "fields": {
+        "document_number": {"label": "NOC number",       "type": "text", "required": true, "labels": ["NOC No", "Certificate No"]},
+        "holder_name":     {"label": "Institution",      "type": "text", "required": true, "shared_key": "legal_name", "labels": ["Name of the Institution", "Name of the Owner"]},
+        "issue_date":      {"label": "Date of issue",    "type": "date", "required": true, "labels": ["Date of Issue", "Issued on"]},
+        "valid_until":     {"label": "Valid until",      "type": "date", "required": true, "labels": ["Valid Upto", "Valid Until", "Validity"]},
+        "building_address":{"label": "Building address", "type": "text", "required": false,"shared_key": "address",    "labels": ["Address of the Building", "Premises"]}
+      }
+    },
+
+    "state_noc": {
+      "label": "State government NOC / essentiality",
+      "proof": {"kind": "signed_qr", "issuer_id": "state_government", "lookup_required": true},
+      "verifier_route": "proof_verifier",
+      "route_confirmed": false,
+      "required_sources": ["mock_issuer:state_government"],
+      "number_field": "document_number",
+      "holder_field": "holder_name",
+      "bind_fields": ["approved_intake", "issue_date"],
+      "fields": {
+        "document_number": {"label": "NOC number",         "type": "text",    "required": true, "labels": ["NOC No", "Letter No", "G.O. No"]},
+        "holder_name":     {"label": "Institution",        "type": "text",    "required": true, "shared_key": "legal_name",     "labels": ["Name of the Institution", "Name of the Trust"]},
+        "approved_intake": {"label": "Intake recommended", "type": "integer", "required": true, "shared_key": "approved_intake","labels": ["Intake", "Approved Intake", "Sanctioned Intake"],
+                            "required_sources": ["mock_aicte"]},
+        "issue_date":      {"label": "Date of issue",      "type": "date",    "required": true, "labels": ["Date", "Date of Issue"]}
+      }
+    },
+
+    "financial_statement": {
+      "label": "Audited financial statement (CA-certified)",
+      "proof": {"kind": "attestation", "registry": "mock_registry", "verify_fields": ["ca_membership_no", "udin"]},
+      "verifier_route": "attestation",
+      "route_confirmed": false,
+      "required_sources": ["mock_registry"],
+      "number_field": "udin",
+      "holder_field": "holder_name",
+      "bind_fields": [],
+      "fields": {
+        "holder_name":      {"label": "Institution / trust",   "type": "text", "required": true, "shared_key": "legal_name", "labels": ["Name of the Society", "Name of the Trust"]},
+        "ca_membership_no": {"label": "CA membership number",  "type": "text", "required": true, "labels": ["Membership No", "M. No"]},
+        "udin":             {"label": "UDIN",                  "type": "text", "required": true, "labels": ["UDIN"]},
+        "financial_year":   {"label": "Financial year",        "type": "text", "required": true, "labels": ["Financial Year", "For the year ended"]}
+      }
+    }
+  },
+
+  "categories": {
+    "new_engineering_institute": {
+      "label": "New engineering institute",
+      "required_documents": [
+        "application_form", "society_registration", "land_deed", "encumbrance_certificate",
+        "land_use_certificate", "building_plan", "occupancy_certificate", "fire_noc",
+        "state_noc", "financial_statement"
+      ],
+      "illustrative": true
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "_note": "Roots trusted for embedded PDF digital signatures. Register: \"<id>\": {\"name\": ..., \"doc_types\": [...], \"root_pem\": \"config/trust_roots/<file>.pem\"}. Then set that document type's proof.kind to \"pdf_signature\" (and required_sources to []) in document_registry.json. Empty = no PDF-signature issuer trusted.",
+  "pades_roots": {}
+}

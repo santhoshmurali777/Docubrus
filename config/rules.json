@@ -1,0 +1,23 @@
+{
+  "_note": "ILLUSTRATIVE rules for the prototype. Every number and clause reference is an example until checked against the official Approval Process Handbook. Loaded as already-approved demo rules (author and approver differ, as the maker-checker rule requires).",
+  "rules": [
+    {
+      "id": "area_per_seat", "version": "1", "clause_ref": "Handbook, built-up area norm (to be verified)",
+      "illustrative": true, "effective_from": "2024-01-01", "state": "approved",
+      "author": "demo_rule_author", "approver": "demo_rule_approver",
+      "definition": {"kind": "area_per_seat", "min_built_up_sqm_per_intake_seat": 10.0, "plan_tolerance_rel": 0.01}
+    },
+    {
+      "id": "min_land_acres", "version": "1", "clause_ref": "Handbook, minimum land (to be verified)",
+      "illustrative": true, "effective_from": "2024-01-01", "state": "approved",
+      "author": "demo_rule_author", "approver": "demo_rule_approver",
+      "definition": {"kind": "min_value", "field": "land_area_acres", "min": 2.5}
+    },
+    {
+      "id": "intake_allowed", "version": "1", "clause_ref": "Handbook, permitted intake sizes (to be verified)",
+      "illustrative": true, "effective_from": "2024-01-01", "state": "approved",
+      "author": "demo_rule_author", "approver": "demo_rule_approver",
+      "definition": {"kind": "allowed_values", "field": "approved_intake", "values": [60, 120, 180, 240]}
+    }
+  ]
+}

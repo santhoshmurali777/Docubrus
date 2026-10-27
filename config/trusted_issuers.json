@@ -1,0 +1,60 @@
+{
+  "_note": "MOCK issuers for the prototype. Keys are derived from a public demo seed and protect nothing.",
+  "issuers": {
+    "fire_department": {
+      "doc_types": [
+        "fire_noc"
+      ],
+      "domain": "fire.mock.invalid",
+      "name": "State Fire Department (mock)",
+      "public_key": "cdf187b754d1c47f0adec951621c417dcf497147ba8240ea7d74c6523b8f2bb8"
+    },
+    "local_body": {
+      "doc_types": [
+        "building_plan",
+        "occupancy_certificate"
+      ],
+      "domain": "municipality.mock.invalid",
+      "name": "Local Body / Municipality (mock)",
+      "public_key": "1b2b4696ca1e6d619f57d7067f57bbfe323ced6bf3aeacb725580814abff6251"
+    },
+    "registrar_societies": {
+      "doc_types": [
+        "society_registration"
+      ],
+      "domain": "societies.mock.invalid",
+      "name": "Registrar of Societies (mock)",
+      "public_key": "2a18ac23d72e5ca780bc9fad344ad3d73f4ff2124adca6c4b6878ba9b0c60549"
+    },
+    "revenue_authority": {
+      "doc_types": [
+        "land_use_certificate",
+        "land_conversion_certificate"
+      ],
+      "domain": "revenue.mock.invalid",
+      "name": "Revenue Authority (mock)",
+      "public_key": "fa3fd5b4f094630412dfe2db951dbf13bc128cc04d13e3c5d01bbc7746f05459"
+    },
+    "state_government": {
+      "doc_types": [
+        "state_noc",
+        "affiliation_letter"
+      ],
+      "domain": "state.mock.invalid",
+      "name": "State Government (mock)",
+      "public_key": "a67b7737a2447236f2b02afffeedd0a549418d99c97023fcb239dcbda7404a1c"
+    },
+    "sub_registrar": {
+      "doc_types": [
+        "land_deed",
+        "encumbrance_certificate"
+      ],
+      "domain": "registration.mock.invalid",
+      "name": "Sub-Registrar (mock)",
+      "public_key": "7ca7c68567689a492f637c481bf9400e740e426bca13344d7b2fbd892fff69a1"
+    }
+  },
+  "lookup_link_domains": {
+    "approvalstatus.aicte.gov.in": "AICTE (approval status portal)"
+  }
+}

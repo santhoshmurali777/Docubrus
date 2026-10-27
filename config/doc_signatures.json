@@ -1,0 +1,53 @@
+{
+  "_note": "What each document type looks like, for app/documents/classify.py. 'titles' are heading phrases (strong), 'keywords' are body phrases (weak). Registry labels are added as titles automatically. 'route' says how the document can be checked today. Editable without code changes.",
+  "types": {
+    "aicte_eoa": {
+      "label": "AICTE Extension of Approval (EoA)",
+      "titles": ["extension of approval", "approval process 2026", "all india council for technical education"],
+      "keywords": ["permanent id", "application id", "intake approved", "affiliating body", "computer generated report"],
+      "route": "unsigned_lookup_link"
+    },
+    "affidavit": {
+      "label": "Affidavit",
+      "titles": ["affidavit"],
+      "keywords": ["solemnly affirm", "deponent", "notary", "oath commissioner", "e-stamp", "stamp paper"],
+      "route": "none_found"
+    },
+    "trust_resolution": {
+      "label": "Resolution of the Trust / Society / Company",
+      "titles": ["resolution"],
+      "keywords": ["resolved that", "board of directors", "managing committee", "chairman", "secretary", "authorised signatory"],
+      "route": "none_found"
+    },
+    "advocate_certificate": {
+      "label": "Advocate's certificate (title / land)",
+      "titles": ["advocate", "legal opinion", "title certificate"],
+      "keywords": ["bar council", "enrolment", "title is clear", "encumbrances", "search report"],
+      "route": "none_found"
+    },
+    "architect_certificate": {
+      "label": "Architect's certificate",
+      "titles": ["architect"],
+      "keywords": ["council of architecture", "coa", "registration no", "built-up area", "building plan"],
+      "route": "none_found"
+    },
+    "bank_certificate": {
+      "label": "Bank manager's certificate",
+      "titles": ["bank manager", "bank certificate", "bank balance"],
+      "keywords": ["fixed deposit", "account no", "branch", "balance", "ifsc"],
+      "route": "none_found"
+    },
+    "structural_stability": {
+      "label": "Structural stability certificate",
+      "titles": ["structural stability", "structural safety"],
+      "keywords": ["structural engineer", "licence no", "load", "foundation", "stable"],
+      "route": "none_found"
+    },
+    "minority_certificate": {
+      "label": "Minority status certificate",
+      "titles": ["minority status", "minority institution", "minority certificate"],
+      "keywords": ["religious minority", "linguistic minority", "ncmei", "competent authority"],
+      "route": "none_found"
+    }
+  }
+}
