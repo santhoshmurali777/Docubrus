@@ -62,6 +62,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 <main class="pane">
 <div class="card">
+  <div class="err" id="eNoAuth" role="alert" style="display:none; margin-bottom:16px;">
+    ⚠️ Authentication is not configured. Set the <code>DOCROC_ADMIN_USER</code> and <code>DOCROC_ADMIN_PASSWORD</code> environment variables to enable login.
+  </div>
   <section id="signin">
     <h1>Sign in</h1>
     <p class="sub">Select your account role and enter your credentials.</p>
@@ -81,7 +84,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
       <div class="err" id="eIn" role="alert" style="display:none;"></div>
       <button class="primary" id="bIn" type="submit">Sign in as Applicant</button>
     </form>
+    <div style="text-align:center; margin-top:12px; font-size:13px; color:var(--mute);">
+      <button type="button" id="goForgot" style="font:inherit; background:none; border:none; color:var(--brand); cursor:pointer; font-size:13px;">Forgot password?</button>
+    </div>
     <div class="swap" id="toUp" style="display:none;">New applicant? <button type="button" id="goUp">Create an account</button></div>
+    <div style="text-align:center; margin-top:10px; font-size:13px;">
+      <button type="button" id="goForgot" style="font:inherit;background:none;border:none;color:var(--brand);cursor:pointer;font-size:13px;">Forgot password?</button>
+    </div>
   </section>
 
   <section id="signup" style="display:none;">
@@ -95,6 +104,48 @@ button:disabled{opacity:.5;cursor:not-allowed}
       <button class="primary" id="bUp" type="submit">Create account</button>
     </form>
     <div class="swap">Already have an account? <button type="button" id="goIn">Sign in</button></div>
+  </section>
+
+  <section id="forgot" style="display:none;">
+    <h1>Reset Password</h1>
+    <p class="sub" id="forgotSub">Enter your username and we'll send a reset link to your registered email.</p>
+    <form id="fForgot">
+      <label>Username<input id="uForgot" name="username" autocomplete="username" required maxlength="64" placeholder="Your username"></label>
+      <div class="err" id="eForgot" role="alert" style="display:none;"></div>
+      <button class="primary" id="bForgot" type="submit">Send reset link</button>
+    </form>
+    <div class="swap"><button type="button" id="goInFromForgot">Back to sign in</button></div>
+  </section>
+
+  <section id="resetpw" style="display:none;">
+    <h1>Set New Password</h1>
+    <p class="sub">Enter a new password for your account (min 8 characters).</p>
+    <form id="fReset">
+      <label>New Password<input id="pReset" type="password" autocomplete="new-password" required minlength="8" maxlength="128"></label>
+      <div class="err" id="eReset" role="alert" style="display:none;"></div>
+      <button class="primary" id="bReset" type="submit">Set new password</button>
+    </form>
+  </section>
+
+  <section id="forgot" style="display:none;">
+    <h1>Reset Password</h1>
+    <p class="sub" id="forgotSub">Enter your username and we'll send a reset link to your registered email.</p>
+    <form id="fForgot">
+      <label>Username<input id="uForgot" name="username" autocomplete="username" required maxlength="64" placeholder="Your username"></label>
+      <div class="err" id="eForgot" role="alert" style="display:none;"></div>
+      <button class="primary" id="bForgot" type="submit">Send reset link</button>
+    </form>
+    <div class="swap"><button type="button" id="goInFromForgot">Back to sign in</button></div>
+  </section>
+
+  <section id="resetpw" style="display:none;">
+    <h1>Set New Password</h1>
+    <p class="sub">Enter a new password for your account.</p>
+    <form id="fReset">
+      <label>New Password<input id="pReset" type="password" autocomplete="new-password" required minlength="8" maxlength="128"></label>
+      <div class="err" id="eReset" role="alert" style="display:none;"></div>
+      <button class="primary" id="bReset" type="submit">Set new password</button>
+    </form>
   </section>
 </div>
 </main>
@@ -173,12 +224,112 @@ $("goIn").addEventListener("click", () => {
   $("signin").style.display = "block";
 });
 
+// ---- Forgot / Reset password ---------------------------------------------------
+$("goForgot").addEventListener("click", () => {
+  ["signin","signup","forgot","resetpw"].forEach(id => $(id).style.display = "none");
+  $("forgot").style.display = "block";
+});
+$("goInFromForgot").addEventListener("click", () => {
+  $("forgot").style.display = "none";
+  $("signin").style.display = "block";
+});
+$("fForgot").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("eForgot").style.display = "none";
+  $("bForgot").disabled = true;
+  try {
+    await api("/api/forgot-password", { username: $("uForgot").value });
+    $("forgotSub").textContent = "✓ If that account has an email on file, a reset link has been sent. Check your inbox.";
+    $("fForgot").style.display = "none";
+  } catch (err) {
+    $("eForgot").textContent = err.message;
+    $("eForgot").style.display = "block";
+    $("bForgot").disabled = false;
+  }
+});
+
+// ---- Handle ?token= in URL (reset-password page) -------------------------------
+(function() {
+  const token = new URLSearchParams(window.location.search).get("token");
+  if (!token) return;
+  ["signin","signup","forgot"].forEach(id => $(id).style.display = "none");
+  $("resetpw").style.display = "block";
+  $("fReset").addEventListener("submit", async e => {
+    e.preventDefault();
+    $("eReset").style.display = "none";
+    $("bReset").disabled = true;
+    try {
+      await api("/api/reset-password", { token, password: $("pReset").value });
+      $("resetpw").innerHTML = "<p style='color:#16a34a;font-weight:600;font-size:16px;'>✓ Password reset successfully!<br><a href='/login' style='color:var(--brand);'>Sign in now →</a></p>";
+    } catch (err) {
+      $("eReset").textContent = err.message;
+      $("eReset").style.display = "block";
+      $("bReset").disabled = false;
+    }
+  });
+})();
+
 (async () => {
   try {
     const me = await (await fetch("/api/me")).json();
     if (me.signup) $("toUp").style.display = "block";
-    if (me.user) location.replace("/");
+    // Only auto-redirect if auth is actually enabled and there's a real session.
+    // When auth is disabled (local-mode), me.auth is false and LOCAL_ADMIN is
+    // returned for everyone — don't redirect in that case or the login page
+    // becomes unreachable.
+    if (me.auth && me.user) location.replace("/");
+    // Show a warning when auth is not configured at all.
+    if (!me.auth) $("eNoAuth").style.display = "block";
   } catch (e) {}
+})();
+
+// Forgot password navigation
+document.getElementById("goForgot").addEventListener("click", () => {
+  ["signin","signup"].forEach(id => $(id).style.display = "none");
+  $("forgot").style.display = "block";
+});
+document.getElementById("goInFromForgot").addEventListener("click", () => {
+  $("forgot").style.display = "none";
+  $("signin").style.display = "block";
+});
+
+// Forgot password form submit
+$("fForgot").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("eForgot").style.display = "none";
+  $("bForgot").disabled = true;
+  try {
+    await api("/api/forgot-password", { username: $("uForgot").value });
+    $("forgotSub").textContent = "✓ If that account has an email address, a reset link has been sent. Check your inbox.";
+    $("fForgot").style.display = "none";
+  } catch (err) {
+    $("eForgot").textContent = err.message;
+    $("eForgot").style.display = "block";
+    $("bForgot").disabled = false;
+  }
+});
+
+// Reset password page: detect ?token= in URL
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  if (token) {
+    ["signin","signup","forgot"].forEach(id => $(id).style.display = "none");
+    $("resetpw").style.display = "block";
+    $("fReset").addEventListener("submit", async e => {
+      e.preventDefault();
+      $("eReset").style.display = "none";
+      $("bReset").disabled = true;
+      try {
+        await api("/api/reset-password", { token, password: $("pReset").value });
+        $("resetpw").innerHTML = "<p style='color:#16a34a; font-weight:600;'>✓ Password reset! <a href='/login'>Sign in</a></p>";
+      } catch (err) {
+        $("eReset").textContent = err.message;
+        $("eReset").style.display = "block";
+        $("bReset").disabled = false;
+      }
+    });
+  }
 })();
 </script>
 </body>

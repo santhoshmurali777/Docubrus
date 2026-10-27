@@ -25,6 +25,15 @@ def get_db_path() -> str:
     return os.environ.get("DOCROC_DB") or os.environ.get("SAAKSHYA_DB") or "docroc.db"
 
 
+def _compute_risk_score(report: dict) -> int:
+    """Simple risk score from the engine pipeline report."""
+    invalid_docs = sum(1 for d in report.get("documents", []) if d.get("status") == "invalid")
+    discrepancies = sum(1 for cc in report.get("cross_checks", []) if not cc.get("matched"))
+    failed_rules = sum(1 for r in report.get("rules", []) if not r.get("passed"))
+    missing = len(report.get("missing_documents", []))
+    return invalid_docs * 5 + discrepancies * 3 + failed_rules * 2 + missing * 4
+
+
 def connect(path: Optional[str] = None) -> sqlite3.Connection:
     db_path = path or get_db_path()
     conn = sqlite3.connect(db_path, check_same_thread=False, timeout=10.0)
@@ -83,7 +92,19 @@ def init_db(conn: sqlite3.Connection) -> None:
             created_at REAL NOT NULL,
             FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            token TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            expires_at REAL NOT NULL,
+            created_at REAL NOT NULL
+        );
         """)
+
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    except Exception:
+        pass  # column already exists
 
     # Ensure default customise config is seeded
     cur = conn.execute("SELECT value_json FROM settings WHERE key = 'customise_config'")
@@ -109,6 +130,7 @@ def bootstrap_admin(conn: sqlite3.Connection) -> None:
     cur = conn.execute("SELECT id FROM users WHERE username = ?", (admin_user,))
     row = cur.fetchone()
     if not row:
+        # First run: create the admin account from env-var credentials.
         user_id = secrets.token_hex(8)
         pw_hash = auth.hash_password(admin_pw)
         with conn:
@@ -116,6 +138,15 @@ def bootstrap_admin(conn: sqlite3.Connection) -> None:
                 "INSERT INTO users (id, username, display_name, role, password_hash, created_at, created_by) "
                 "VALUES (?, ?, ?, 'admin', ?, ?, 'system')",
                 (user_id, admin_user, "Default Administrator", pw_hash, time.time()),
+            )
+    else:
+        # Account already exists — always sync the password to match the
+        # current env-var value so a credential change takes effect on restart.
+        pw_hash = auth.hash_password(admin_pw)
+        with conn:
+            conn.execute(
+                "UPDATE users SET password_hash = ?, role = 'admin', disabled = 0 WHERE username = ?",
+                (pw_hash, admin_user),
             )
 
 
@@ -134,7 +165,10 @@ def get_user_by_id(conn: sqlite3.Connection, user_id: str) -> Optional[dict]:
 
 
 def list_users(conn: sqlite3.Connection) -> List[dict]:
-    cur = conn.execute("SELECT id, username, display_name, role, disabled, created_at, created_by FROM users ORDER BY created_at ASC")
+    cur = conn.execute(
+        "SELECT id, username, display_name, role, email, disabled, created_at, created_by "
+        "FROM users ORDER BY created_at ASC"
+    )
     return [dict(r) for r in cur.fetchall()]
 
 
@@ -150,6 +184,7 @@ def create_user(
     role: str,
     password: str,
     created_by: str = "system",
+    email: Optional[str] = None,
 ) -> Tuple[bool, str, Optional[dict]]:
     u = auth.normalise_username(username)
     err = auth.check_username(u)
@@ -167,11 +202,12 @@ def create_user(
     uid = secrets.token_hex(8)
     pw_hash = auth.hash_password(password)
     now = time.time()
+    clean_email = (email.strip() if email else None) or None
     with conn:
         conn.execute(
-            "INSERT INTO users (id, username, display_name, role, password_hash, created_at, created_by) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (uid, u, display_name.strip() or u, role, pw_hash, now, created_by),
+            "INSERT INTO users (id, username, display_name, role, password_hash, created_at, created_by, email) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (uid, u, display_name.strip() or u, role, pw_hash, now, created_by, clean_email),
         )
     return True, "User created successfully.", get_user_by_id(conn, uid)
 
@@ -183,6 +219,7 @@ def update_user(
     role: Optional[str] = None,
     disabled: Optional[bool] = None,
     password: Optional[str] = None,
+    email: Optional[str] = None,
 ) -> Tuple[bool, str]:
     user = get_user_by_id(conn, user_id)
     if not user:
@@ -214,6 +251,10 @@ def update_user(
         updates.append("password_hash = ?")
         params.append(auth.hash_password(password))
 
+    if email is not None:
+        updates.append("email = ?")
+        params.append(email.strip() or None)
+
     if not updates:
         return True, "No changes made."
 
@@ -234,6 +275,61 @@ def delete_user(conn: sqlite3.Connection, user_id: str) -> Tuple[bool, str]:
     with conn:
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
     return True, "User deleted successfully."
+
+
+# ---- Password Reset Tokens -------------------------------------------------------------------------------
+
+def create_reset_token(conn: sqlite3.Connection, username: str) -> str:
+    """Create a 1-hour password-reset token. Replaces any existing token for this user."""
+    with conn:
+        conn.execute("DELETE FROM password_reset_tokens WHERE username = ?", (username,))
+    token = secrets.token_urlsafe(32)
+    with conn:
+        conn.execute(
+            "INSERT INTO password_reset_tokens (token, username, expires_at, created_at) VALUES (?, ?, ?, ?)",
+            (token, username, time.time() + 3600, time.time()),
+        )
+    return token
+
+
+def consume_reset_token(conn: sqlite3.Connection, token: str) -> Optional[str]:
+    """Validate and consume a reset token. Returns username on success, None if invalid/expired."""
+    cur = conn.execute(
+        "SELECT username, expires_at FROM password_reset_tokens WHERE token = ?", (token,)
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    if time.time() > row["expires_at"]:
+        with conn:
+            conn.execute("DELETE FROM password_reset_tokens WHERE token = ?", (token,))
+        return None
+    with conn:
+        conn.execute("DELETE FROM password_reset_tokens WHERE token = ?", (token,))
+    return row["username"]
+
+
+# ---- Signup Toggle ---------------------------------------------------------------------------------------
+
+def get_signup_allowed_db(conn: sqlite3.Connection) -> Optional[bool]:
+    """Returns None if not overridden in DB (falls back to env var)."""
+    cur = conn.execute("SELECT value_json FROM settings WHERE key = 'allow_signup'")
+    row = cur.fetchone()
+    if row:
+        try:
+            return json.loads(row["value_json"])
+        except Exception:
+            pass
+    return None
+
+
+def set_signup_allowed_db(conn: sqlite3.Connection, allowed: bool) -> None:
+    with conn:
+        conn.execute(
+            "INSERT INTO settings (key, value_json, updated_at) VALUES ('allow_signup', ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at",
+            (json.dumps(allowed), time.time()),
+        )
 
 
 # ---- Settings & Customisation ----------------------------------------------------------------------------
@@ -299,19 +395,76 @@ def get_submission(conn: sqlite3.Connection, submission_id: str) -> Optional[dic
     return d
 
 
-def list_submissions(conn: sqlite3.Connection, applicant_id: Optional[str] = None) -> List[dict]:
+def list_submissions(
+    conn: sqlite3.Connection,
+    applicant_id: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> List[dict]:
+    where, params = [], []
     if applicant_id:
-        cur = conn.execute(
-            "SELECT id, applicant_id, applicant_name, institution, status, created_at, files_wiped "
-            "FROM submissions WHERE applicant_id = ? ORDER BY created_at DESC",
-            (applicant_id,),
-        )
-    else:
-        cur = conn.execute(
-            "SELECT id, applicant_id, applicant_name, institution, status, created_at, files_wiped "
-            "FROM submissions ORDER BY created_at DESC"
-        )
-    return [dict(r) for r in cur.fetchall()]
+        where.append("applicant_id = ?")
+        params.append(applicant_id)
+    if status_filter:
+        where.append("status = ?")
+        params.append(status_filter)
+    if search:
+        where.append("(applicant_name LIKE ? OR id LIKE ? OR institution LIKE ?)")
+        like = f"%{search}%"
+        params.extend([like, like, like])
+    sql = ("SELECT id, applicant_id, applicant_name, institution, status, "
+           "created_at, files_wiped, report_json FROM submissions")
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY created_at DESC"
+    if limit is not None:
+        sql += f" LIMIT {int(limit)} OFFSET {int(offset)}"
+    cur = conn.execute(sql, params)
+    rows = []
+    for r in cur.fetchall():
+        d = dict(r)
+        try:
+            report = json.loads(d.pop("report_json", None) or "{}")
+            d["risk"] = _compute_risk_score(report)
+        except Exception:
+            d.pop("report_json", None)
+            d["risk"] = 0
+        rows.append(d)
+    return rows
+
+
+def count_submissions(
+    conn: sqlite3.Connection,
+    applicant_id: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    search: Optional[str] = None,
+) -> int:
+    where, params = [], []
+    if applicant_id:
+        where.append("applicant_id = ?")
+        params.append(applicant_id)
+    if status_filter:
+        where.append("status = ?")
+        params.append(status_filter)
+    if search:
+        where.append("(applicant_name LIKE ? OR id LIKE ? OR institution LIKE ?)")
+        like = f"%{search}%"
+        params.extend([like, like, like])
+    sql = "SELECT COUNT(*) AS c FROM submissions"
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    cur = conn.execute(sql, params)
+    return cur.fetchone()["c"]
+
+
+def _compute_risk_score(report: dict) -> int:
+    invalid_docs = sum(1 for d in report.get("documents", []) if d.get("status") == "invalid")
+    discrepancies = sum(1 for cc in report.get("cross_checks", []) if not cc.get("matched"))
+    failed_rules = sum(1 for r in report.get("rules", []) if not r.get("passed"))
+    missing = len(report.get("missing_documents", []))
+    return invalid_docs * 5 + discrepancies * 3 + failed_rules * 2 + missing * 4
 
 
 def get_submission_file(conn: sqlite3.Connection, submission_id: str, doc_id: str) -> Optional[Tuple[str, bytes]]:

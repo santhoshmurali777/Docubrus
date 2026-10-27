@@ -9,6 +9,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
 :root{--bg:#f8fafc;--surface:#fff;--ink:#0f172a;--ink2:#334155;--mute:#64748b;--line:#e2e8f0;--brand:#2250d8;--brand-d:#1a3fb0;--grn:#16a34a;--grnbg:#f0fdf4;--red:#dc2626;--redbg:#fef2f2;--ylw:#ca8a04;--ylwbg:#fefce8;--sans:"Inter",system-ui,-apple-system,sans-serif}
+body.dark{--bg:#0f172a;--surface:#1e293b;--ink:#f1f5f9;--ink2:#cbd5e1;--mute:#94a3b8;--line:#334155;--brand:#6088f8;--brand-d:#4f76f6}
+body.dark header,body.dark .card,body.dark .modal-content,body.dark .check-item,body.dark input,body.dark select,body.dark textarea{background:var(--surface);color:var(--ink);border-color:var(--line)}
+body.dark table th{background:#0f172a}
+body.dark .btn-secondary{background:var(--surface);border-color:var(--line);color:var(--ink2)}
+body.dark .dropzone{background:var(--surface);border-color:var(--line)}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
 header{background:white;border-bottom:1px solid var(--line);padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
@@ -66,6 +71,7 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
     <button class="nav-tab" data-view="users" id="navUsers" style="display:none;">Users</button>
   </nav>
   <div class="user-menu">
+    <button id="btnDark" title="Toggle dark mode" style="font:inherit; background:none; border:none; cursor:pointer; font-size:18px; padding:4px 8px; border-radius:6px; color:var(--mute);">🌙</button>
     <span id="userName">Checking...</span>
     <span class="role-badge" id="roleBadge">User</span>
     <button class="signout" id="btnSignOut">Sign out</button>
@@ -73,6 +79,10 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
 </header>
 
 <main>
+  <div id="sessionWarn" style="display:none; background:#fef3c7; border-bottom:1px solid #fde68a; padding:10px 24px; font-size:13px; font-weight:600; color:#92400e; text-align:center;">
+    ⚠️ Your session expires in <span id="sessionCountdown"></span>. <a href="/login" style="color:#92400e;">Sign in again</a> to stay logged in.
+  </div>
+
   <!-- SUBMISSIONS VIEW -->
   <section id="viewSubmissions" class="view">
     <div class="card">
@@ -80,8 +90,33 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
         <h2>Submissions</h2>
         <button class="btn btn-primary" id="btnNewUpload">+ New Application</button>
       </div>
+      <div id="aiWarning" style="display:none; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:13px; color:#92400e;">
+        ⚠️ <strong>AI vision reader is disabled</strong> — <code>ANTHROPIC_API_KEY</code> is not set. Documents are verified using heuristic text extraction only, which is less accurate.
+      </div>
+      <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="searchInput" placeholder="Search applicant, ID, institution…" style="flex:1; min-width:180px; padding:8px 12px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:13px;">
+        <select id="statusFilter" style="padding:8px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:13px;">
+          <option value="">All statuses</option>
+          <option value="Cleared">Cleared</option>
+          <option value="Review">Review</option>
+          <option value="Not cleared">Not cleared</option>
+          <option value="Incomplete">Incomplete</option>
+        </select>
+        <select id="sortSelect" style="padding:8px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:13px;">
+          <option value="date">Sort: Newest first</option>
+          <option value="risk">Sort: Highest risk</option>
+        </select>
+        <a href="/api/submissions/export.csv" class="btn btn-secondary" style="text-decoration:none; font-size:13px; padding:7px 12px;">⬇ Export CSV</a>
+      </div>
       <div id="subsContainer">
         <p style="color:var(--mute);">Loading submissions...</p>
+      </div>
+      <div id="pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; font-size:13px; display:none;">
+        <span id="pageInfo" style="color:var(--mute);"></span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary" id="btnPrev" style="font-size:13px; padding:6px 12px;">← Prev</button>
+          <button class="btn btn-secondary" id="btnNext" style="font-size:13px; padding:6px 12px;">Next →</button>
+        </div>
       </div>
     </div>
   </section>
@@ -93,6 +128,41 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
       <p style="color:var(--mute); margin-top:-8px;">Upload all required files to verify qualifications.</p>
       
       <div id="checklistItems" class="checklist"></div>
+
+      <!-- ── DigiLocker Panel ──────────────────────────────────────── -->
+      <div id="dlPanel" style="border:1px solid var(--line); border-radius:10px; padding:18px; margin:20px 0; background:#f8fafc; display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:22px;">🔒</span>
+            <div>
+              <div style="font-weight:700; font-size:15px;">DigiLocker</div>
+              <div style="color:var(--mute); font-size:12.5px;">Import documents directly from your DigiLocker account</div>
+            </div>
+          </div>
+          <div id="dlStatusBadge" style="font-size:12px; font-weight:600; padding:4px 10px; border-radius:20px; background:#e2e8f0; color:var(--ink2);">Checking...</div>
+        </div>
+
+        <div id="dlNotConfigured" style="display:none; color:var(--mute); font-size:13px; padding:8px 0;">
+          ⚠️ DigiLocker is not configured on this server.
+        </div>
+
+        <div id="dlConnectArea" style="display:none;">
+          <button class="btn btn-secondary" id="btnDlConnect" style="font-size:13px;">
+            🔗 Connect DigiLocker
+          </button>
+        </div>
+
+        <div id="dlConnectedArea" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="color:#16a34a; font-weight:600; font-size:13px;">✓ Connected</span>
+            <button class="btn btn-secondary" id="btnDlRefresh" style="font-size:12px; padding:5px 10px;">↻ Refresh list</button>
+          </div>
+          <div id="dlDocList" style="display:grid; gap:8px; max-height:260px; overflow-y:auto;"></div>
+          <div id="dlDocEmpty" style="color:var(--mute); font-size:13px; display:none;">No PDF documents found in your DigiLocker.</div>
+          <div id="dlFetchStatus" style="margin-top:10px; font-size:13px; font-weight:600; color:var(--brand); display:none;"></div>
+        </div>
+      </div>
+      <!-- ── end DigiLocker Panel ───────────────────────────────────── -->
 
       <div class="dropzone" id="dropArea">
         <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg" style="display:none;">
@@ -129,6 +199,42 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
     </div>
   </div>
 
+  <!-- CREATE USER MODAL -->
+  <div id="createUserModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:450px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h2 style="margin:0;">Create New User</h2>
+        <button class="btn btn-secondary" onclick="$('createUserModal').style.display='none'">✕</button>
+      </div>
+      <form id="fCreateUser" style="display:grid; gap:12px;">
+        <label style="font-size:13px; font-weight:600;">Username
+          <input id="newUsername" required maxlength="32" placeholder="e.g. john_doe" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-top:4px;">
+        </label>
+        <label style="font-size:13px; font-weight:600;">Display Name
+          <input id="newDisplayName" required maxlength="60" placeholder="e.g. John Doe" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-top:4px;">
+        </label>
+        <label style="font-size:13px; font-weight:600;">Email (optional)
+          <input id="newEmail" type="email" placeholder="e.g. john@example.com" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-top:4px;">
+        </label>
+        <label style="font-size:13px; font-weight:600;">Role
+          <select id="newRole" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-top:4px;">
+            <option value="applicant">Applicant</option>
+            <option value="reviewer">Reviewer</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <label style="font-size:13px; font-weight:600;">Password
+          <input id="newPassword" type="password" required minlength="8" maxlength="128" placeholder="Min 8 characters" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-top:4px;">
+        </label>
+        <div id="createUserErr" class="err" style="display:none; color:var(--red); font-size:12px;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+          <button type="button" class="btn btn-secondary" onclick="$('createUserModal').style.display='none'">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitCreateUser">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- CUSTOMISE VIEW (ADMIN ONLY) -->
   <section id="viewCustomise" class="view" style="display:none;">
     <div class="card">
@@ -161,6 +267,19 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
       <h3>Configured Documents</h3>
       <div id="cfgDocsList" style="margin-bottom:20px;"></div>
 
+      <div style="margin:20px 0; padding:16px; background:#f8fafc; border:1px solid var(--line); border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:600;">Allow Public Sign-up</div>
+            <div style="font-size:12.5px; color:var(--mute);">Let new applicants create their own accounts from the login page.</div>
+          </div>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:600;">
+            <input type="checkbox" id="signupToggle" style="width:16px; height:16px; accent-color:var(--brand);">
+            <span id="signupToggleLabel">Off</span>
+          </label>
+        </div>
+      </div>
+
       <button class="btn btn-primary" id="btnSaveConfig">Save Configuration</button>
     </div>
   </section>
@@ -173,7 +292,7 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
         <button class="btn btn-primary" id="btnCreateUserModal">+ New User</button>
       </div>
       <table id="usersTable">
-        <thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Email</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -187,6 +306,33 @@ let currentUser = null;
 let activeConfig = null;
 let uploadedFiles = [];
 
+// Dark mode toggle & state
+const _dark = localStorage.getItem("docroc_dark") === "1";
+if (_dark) document.body.classList.add("dark");
+const darkBtn = $("btnDark");
+if (darkBtn) {
+  darkBtn.textContent = _dark ? "☀️" : "🌙";
+  darkBtn.addEventListener("click", () => {
+    const on = document.body.classList.toggle("dark");
+    localStorage.setItem("docroc_dark", on ? "1" : "0");
+    darkBtn.textContent = on ? "☀️" : "🌙";
+  });
+}
+
+function startSessionTimer(expiresAt) {
+  if (!expiresAt) return;
+  setInterval(() => {
+    const secsLeft = Math.floor(expiresAt - Date.now() / 1000);
+    if (secsLeft <= 300) {  // warn when 5 mins left
+      const mins = Math.max(0, Math.floor(secsLeft / 60));
+      const secs = Math.max(0, secsLeft % 60);
+      if ($("sessionCountdown")) $("sessionCountdown").textContent = `${mins}m ${secs}s`;
+      if ($("sessionWarn")) $("sessionWarn").style.display = "block";
+    }
+    if (secsLeft <= 0) location.replace("/login");
+  }, 1000);
+}
+
 async function init() {
   const me = await (await fetch("/api/me")).json();
   if (!me.user) {
@@ -197,6 +343,11 @@ async function init() {
   $("userName").textContent = currentUser.display_name;
   $("roleBadge").textContent = currentUser.role;
   $("roleBadge").className = "role-badge " + currentUser.role;
+
+  startSessionTimer(me.session_expires_at);
+  if (me.ai_enabled === false && $("aiWarning")) {
+    $("aiWarning").style.display = "block";
+  }
 
   if (currentUser.role === "applicant") {
     $("navUpload").style.display = "inline-block";
@@ -261,7 +412,113 @@ async function loadChecklist() {
       <div style="font-size:12px; color:var(--mute);">${(d.accepted_formats||[]).join(', ').toUpperCase()}</div>
     </div>
   `).join('');
+  await initDigiLocker();
 }
+
+// ── DigiLocker ────────────────────────────────────────────────────────────
+async function initDigiLocker() {
+  $("dlPanel").style.display = "block";
+  try {
+    const s = await (await fetch("/api/digilocker/status")).json();
+    if (!s.configured) {
+      $("dlStatusBadge").textContent = "Not configured";
+      $("dlNotConfigured").style.display = "block";
+      return;
+    }
+    if (s.connected) {
+      showDlConnected();
+      loadDlDocs();
+    } else {
+      $("dlStatusBadge").textContent = "Not connected";
+      $("dlStatusBadge").style.background = "#fef3c7";
+      $("dlStatusBadge").style.color = "#92400e";
+      $("dlConnectArea").style.display = "block";
+    }
+  } catch (e) {
+    $("dlPanel").style.display = "none";
+  }
+}
+
+function showDlConnected() {
+  $("dlStatusBadge").textContent = "Connected";
+  $("dlStatusBadge").style.background = "#dcfce7";
+  $("dlStatusBadge").style.color = "#166534";
+  $("dlConnectArea").style.display = "none";
+  $("dlConnectedArea").style.display = "block";
+}
+
+$("btnDlConnect").addEventListener("click", async () => {
+  $("btnDlConnect").disabled = true;
+  $("btnDlConnect").textContent = "Connecting...";
+  try {
+    const r = await (await fetch("/api/digilocker/start", {method: "POST"})).json();
+    // Mock mode: callback URL is a relative path on same origin.
+    // Real mode: external DigiLocker URL.
+    window.location.href = r.url;
+  } catch (e) {
+    alert("Could not start DigiLocker connection: " + e.message);
+    $("btnDlConnect").disabled = false;
+    $("btnDlConnect").textContent = "🔗 Connect DigiLocker";
+  }
+});
+
+$("btnDlRefresh").addEventListener("click", loadDlDocs);
+
+async function loadDlDocs() {
+  $("dlDocList").innerHTML = '<p style="color:var(--mute); font-size:13px;">Loading...</p>';
+  $("dlDocEmpty").style.display = "none";
+  try {
+    const r = await (await fetch("/api/digilocker/docs")).json();
+    const docs = r.documents || [];
+    if (docs.length === 0) {
+      $("dlDocList").innerHTML = "";
+      $("dlDocEmpty").style.display = "block";
+      return;
+    }
+    $("dlDocList").innerHTML = docs.map(d => `
+      <div style="display:flex; justify-content:space-between; align-items:center;
+                  background:white; border:1px solid var(--line); border-radius:8px;
+                  padding:10px 14px; font-size:13px;">
+        <div>
+          <div style="font-weight:600;">📄 ${d.name}</div>
+          <div style="color:var(--mute); font-size:12px;">${d.issuer || ''} ${d.date ? '· ' + d.date : ''}</div>
+        </div>
+        <button class="btn btn-primary" style="font-size:12px; padding:6px 12px; white-space:nowrap;"
+                onclick="dlFetchDoc('${d.uri.replace(/'/g,"\\'")}', '${d.name.replace(/'/g,"\\'")}')">
+          Import &amp; Verify
+        </button>
+      </div>
+    `).join('');
+  } catch (e) {
+    $("dlDocList").innerHTML = '<p style="color:var(--red); font-size:13px;">Could not load documents.</p>';
+  }
+}
+
+async function dlFetchDoc(uri, name) {
+  const status = $("dlFetchStatus");
+  status.style.display = "block";
+  status.textContent = `Importing "${name}"...`;
+  try {
+    const r = await fetch("/api/digilocker/fetch", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({uri})
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "Import failed");
+    status.style.color = "#16a34a";
+    status.textContent = `✓ Imported & verified "${name}" — verdict: ${data.verdict}`;
+    setTimeout(() => {
+      status.style.display = "none";
+      status.style.color = "var(--brand)";
+      showView("submissions");
+    }, 1800);
+  } catch (e) {
+    status.style.color = "var(--red)";
+    status.textContent = "✗ " + e.message;
+  }
+}
+// ── end DigiLocker ────────────────────────────────────────────────────────
 
 // Dropzone & File Handling
 const dropArea = $("dropArea");
@@ -330,23 +587,63 @@ $("btnRunVerification").addEventListener("click", async () => {
   }
 });
 
-// Submissions Loader
+// Submissions Loader with Search, Filter, Sort, Pagination & Risk Scoring
+let _subsPage = 0;
+const _subsPageSize = 20;
+let _subsTotal = 0;
+
+function riskBadge(risk) {
+  if (risk >= 10) return `<span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;">HIGH (${risk})</span>`;
+  if (risk >= 4) return `<span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fefce8;color:#ca8a04;border:1px solid #fef08a;">MED (${risk})</span>`;
+  return `<span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">LOW (${risk})</span>`;
+}
+
 async function loadSubmissions() {
-  const data = await (await fetch("/api/submissions")).json();
+  const search = ($("searchInput") || {value:""}).value.trim();
+  const status = ($("statusFilter") || {value:""}).value;
+  const sort = ($("sortSelect") || {value:"date"}).value;
+  const params = new URLSearchParams({
+    limit: _subsPageSize,
+    offset: _subsPage * _subsPageSize,
+    ...(search ? {search} : {}),
+    ...(status ? {status} : {}),
+    sort,
+  });
+
+  const res = await fetch("/api/submissions?" + params);
+  const json = await res.json();
+  const data = json.submissions || (Array.isArray(json) ? json : []);
+  _subsTotal = json.total ?? data.length;
+
+  // Pagination UI
+  const totalPages = Math.ceil(_subsTotal / _subsPageSize) || 1;
+  const pag = $("pagination");
+  if (pag) {
+    if (_subsTotal > _subsPageSize) {
+      pag.style.display = "flex";
+      $("pageInfo").textContent = `Showing ${_subsPage * _subsPageSize + 1}–${Math.min((_subsPage + 1) * _subsPageSize, _subsTotal)} of ${_subsTotal}`;
+      $("btnPrev").disabled = _subsPage === 0;
+      $("btnNext").disabled = (_subsPage + 1) >= totalPages;
+    } else {
+      pag.style.display = "none";
+    }
+  }
+
   if (!data || data.length === 0) {
     $("subsContainer").innerHTML = '<p style="color:var(--mute);">No submissions found.</p>';
     return;
   }
   $("subsContainer").innerHTML = `
     <table>
-      <thead><tr><th>ID</th><th>Applicant</th><th>Institution</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
+      <thead><tr><th>ID</th><th>Applicant</th><th>Institution</th><th>Status</th><th>Risk</th><th>Submitted</th><th>Actions</th></tr></thead>
       <tbody>
         ${data.map(s => `
           <tr>
             <td><code>${s.id}</code></td>
             <td><b>${s.applicant_name}</b></td>
             <td>${s.institution}</td>
-            <td><span class="badge ${s.status.toLowerCase().replace(' ', '_')}">${s.status}</span></td>
+            <td><span class="badge ${s.status.toLowerCase().replace(/ /g, '_')}">${s.status}</span></td>
+            <td>${riskBadge(s.risk || 0)}</td>
             <td>${new Date(s.created_at * 1000).toLocaleString()}</td>
             <td>
               <button class="btn btn-secondary" onclick="viewDetail('${s.id}')">View</button>
@@ -357,6 +654,38 @@ async function loadSubmissions() {
       </tbody>
     </table>
   `;
+}
+
+// Wire search, filters & pagination
+["searchInput", "statusFilter", "sortSelect"].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener("change", () => { _subsPage = 0; loadSubmissions(); });
+});
+const searchEl = $("searchInput");
+if (searchEl) searchEl.addEventListener("input", () => { _subsPage = 0; loadSubmissions(); });
+const prevBtn = $("btnPrev");
+if (prevBtn) prevBtn.addEventListener("click", () => { if (_subsPage > 0) { _subsPage--; loadSubmissions(); } });
+const nextBtn = $("btnNext");
+if (nextBtn) nextBtn.addEventListener("click", () => { _subsPage++; loadSubmissions(); });
+
+// PDF Previewer State & Functions
+let _viewerState = {subId: null, docId: null, page: 1};
+
+function viewPage(subId, docId, page) {
+  _viewerState = {subId, docId, page};
+  const wrap = $("pdfViewerWrap");
+  if (wrap) wrap.style.display = "block";
+  const img = $("pdfPageImg");
+  if (img) img.src = `/api/submissions/${subId}/page/${docId}/${page}`;
+  const lbl = $("pageLabel");
+  if (lbl) lbl.textContent = `Page ${page}`;
+  if (wrap) wrap.scrollIntoView({behavior: "smooth", block: "nearest"});
+}
+
+function changePage(delta) {
+  const next = _viewerState.page + delta;
+  if (next < 1) return;
+  viewPage(_viewerState.subId, _viewerState.docId, next);
 }
 
 // Detail Viewer (Papers, Please side-by-side reconciliation)
@@ -395,7 +724,13 @@ async function viewDetail(subId) {
       <tbody>
         ${(rep.documents || []).map(d => `
           <tr>
-            <td><b>${d.title}</b></td>
+            <td>
+              <b>${d.title}</b><br>
+              <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                <a href="/api/submissions/${s.id}/files/${d.doc_id}" target="_blank" class="btn btn-secondary" style="font-size:11px;padding:3px 8px;text-decoration:none;">⬇ Download</a>
+                <button class="btn btn-secondary" style="font-size:11px;padding:3px 8px;" onclick="viewPage('${s.id}','${d.doc_id}',1)">🔍 Preview</button>
+              </div>
+            </td>
             <td><span class="badge ${d.status === 'valid' ? 'cleared' : 'not_cleared'}">${d.status}</span></td>
             <td>${d.is_legible ? '✓' : '✗'}</td>
             <td>${d.has_digital_signature ? '✓ Yes' : 'None'}</td>
@@ -404,6 +739,17 @@ async function viewDetail(subId) {
         `).join('')}
       </tbody>
     </table>
+
+    <div id="pdfViewerWrap" style="display:none; margin-top:24px; padding:16px; background:#f8fafc; border:1px solid var(--line); border-radius:8px;">
+      <h3 style="margin:0 0 10px 0;">Document Preview</h3>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <button class="btn btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="changePage(-1)">← Prev</button>
+        <span id="pageLabel" style="font-size:13px; color:var(--mute); font-weight:600;">Page 1</span>
+        <button class="btn btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="changePage(1)">Next →</button>
+        <button class="btn btn-secondary" style="font-size:12px;padding:4px 10px; margin-left:auto;" onclick="$('pdfViewerWrap').style.display='none'">✕ Close</button>
+      </div>
+      <img id="pdfPageImg" src="" alt="Page preview" style="width:100%; border:1px solid var(--line); border-radius:6px; display:block; background:white;">
+    </div>
 
     ${currentUser.role !== 'applicant' ? `
       <h3 style="margin-top:24px;">Reviewer Actions</h3>
@@ -440,6 +786,32 @@ function renderCustomise() {
       <div style="font-size:12px; color:var(--mute);">${(d.expected_keywords || []).join(', ')}</div>
     </div>
   `).join('');
+
+  // Load public signup toggle state from /api/me
+  fetch("/api/me").then(r => r.json()).then(me => {
+    const tog = $("signupToggle");
+    const lbl = $("signupToggleLabel");
+    if (tog) tog.checked = !!me.signup;
+    if (lbl) lbl.textContent = me.signup ? "On" : "Off";
+  }).catch(() => {});
+}
+
+const togEl = $("signupToggle");
+if (togEl) {
+  togEl.addEventListener("change", async () => {
+    const allowed = togEl.checked;
+    const lbl = $("signupToggleLabel");
+    if (lbl) lbl.textContent = allowed ? "On" : "Off";
+    try {
+      await fetch("/api/settings/signup", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({allowed}),
+      });
+    } catch (e) {
+      alert("Failed to update sign-up setting: " + e.message);
+    }
+  });
 }
 
 async function applyPreset(name) {
@@ -474,6 +846,7 @@ async function loadUsers() {
       <td><b>${u.username}</b></td>
       <td>${u.display_name}</td>
       <td><span class="role-badge ${u.role}">${u.role}</span></td>
+      <td>${u.email ? `<code>${u.email}</code>` : '<span style="color:var(--mute); font-size:12px;">None</span>'}</td>
       <td>${u.disabled ? '<span style="color:var(--red);">Disabled</span>' : '<span style="color:var(--grn);">Active</span>'}</td>
       <td>${new Date(u.created_at * 1000).toLocaleDateString()}</td>
       <td>
@@ -499,6 +872,49 @@ async function deleteUser(id) {
   if (!confirm("Are you sure you want to delete this user?")) return;
   await fetch(`/api/users/${id}`, {method: "DELETE"});
   loadUsers();
+}
+
+const btnCreateModal = $("btnCreateUserModal");
+if (btnCreateModal) {
+  btnCreateModal.addEventListener("click", () => {
+    $("createUserErr").style.display = "none";
+    $("fCreateUser").reset();
+    $("createUserModal").style.display = "grid";
+  });
+}
+
+const fCreate = $("fCreateUser");
+if (fCreate) {
+  fCreate.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errBox = $("createUserErr");
+    errBox.style.display = "none";
+    const btn = $("btnSubmitCreateUser");
+    btn.disabled = true;
+    try {
+      const payload = {
+        username: $("newUsername").value.trim(),
+        display_name: $("newDisplayName").value.trim(),
+        email: $("newEmail").value.trim() || null,
+        role: $("newRole").value,
+        password: $("newPassword").value,
+      };
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to create user.");
+      $("createUserModal").style.display = "none";
+      loadUsers();
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.style.display = "block";
+    } finally {
+      btn.disabled = false;
+    }
+  });
 }
 
 init();

@@ -202,6 +202,13 @@ def clear_all_sessions() -> None:
     _sessions.clear()
 
 
+def get_session_expires(token: Optional[str]) -> Optional[float]:
+    """Return the Unix timestamp when this session expires, or None if not found."""
+    if not token or token not in _sessions:
+        return None
+    return _sessions[token].expires_at
+
+
 # ---- Configuration Switches ------------------------------------------------------------------------------
 
 def admin_credentials() -> Tuple[Optional[str], Optional[str]]:
@@ -219,3 +226,10 @@ def enabled() -> bool:
 def signup_allowed() -> bool:
     val = os.environ.get("DOCROC_ALLOW_SIGNUP") or os.environ.get("SAAKSHYA_ALLOW_SIGNUP", "")
     return val in ("1", "true", "True")
+
+
+def get_session_expires(token: Optional[str]) -> Optional[float]:
+    """Return the Unix timestamp when this session expires, or None if not found."""
+    if not token or token not in _sessions:
+        return None
+    return _sessions[token].expires_at
