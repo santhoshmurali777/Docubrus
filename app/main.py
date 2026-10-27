@@ -15,13 +15,15 @@ NOTE      No login yet (auth is not built in this version): run it locally, do n
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
+import secrets
 from collections import OrderedDict
 from typing import List, Literal, Optional
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field, ValidationError
 
@@ -38,6 +40,29 @@ MAX_REPORTS = 50
 MAX_STORED_BYTES = 150 * 1024 * 1024      # original PDFs kept for the page viewer, oldest case dropped first
 
 app = FastAPI(title="Docubrus (prototype)", docs_url=None, redoc_url=None)
+
+
+@app.middleware("http")
+async def _basic_auth(request: Request, call_next):
+    """Optional shared password. Active only when SAAKSHYA_USER and SAAKSHYA_PASSWORD are both set.
+    /healthz stays open so a hosting platform can check the service. This is one shared login, not
+    per-reviewer accounts: the reviewer name typed on the page is still not verified."""
+    user, pw = os.environ.get("SAAKSHYA_USER"), os.environ.get("SAAKSHYA_PASSWORD")
+    if not (user and pw) or request.url.path == "/healthz":
+        return await call_next(request)
+    ok = False
+    header = request.headers.get("authorization", "")
+    if header.lower().startswith("basic "):
+        try:
+            u, _, p = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+            ok = secrets.compare_digest(u.encode(), user.encode()) & secrets.compare_digest(p.encode(), pw.encode())
+        except Exception:
+            ok = False
+    if ok:
+        return await call_next(request)
+    return Response("Sign in required", status_code=401, headers={"WWW-Authenticate": 'Basic realm="Docubrus"'})
+
+
 _conn = None
 _reports: "OrderedDict[str, dict]" = OrderedDict()
 _files: "OrderedDict[str, dict[str, bytes]]" = OrderedDict()     # case_id -> document_id -> PDF bytes

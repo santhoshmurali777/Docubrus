@@ -41,3 +41,12 @@ See `data/synthetic/EXPECTED.md` for seeded scenarios and known limits.
 * **Adapters.** `app/authenticity/adapters.py` defines `IssuerAdapter` (`verify`, `lookup`) with `MockIssuerAdapter`, `PadesAdapter`, and a `LiveIssuerAdapter` placeholder. The orchestrator picks one from `proof.kind`.
 * **Regulator snapshot.** `python -m app.aicte_snapshot import <csv> <out.json> --date YYYY-MM-DD --origin "<source>" --key-col .. --name-col .. --intake-col .. --intake-mode sum|first|max`,
   then set `SAAKSHYA_AICTE_SNAPSHOT=<out.json>`. Reports then say "snapshot dated X", and a note appears if it is over 90 days old.
+
+## Deploy (Render, from GitHub)
+1. Push this folder to GitHub (the repo root must contain `Dockerfile` and `render.yaml`).
+2. On render.com: **New > Blueprint**, pick the repo, then enter `SAAKSHYA_USER` and `SAAKSHYA_PASSWORD` when asked.
+3. Open the URL Render gives you and sign in with that user and password.
+
+* Without those two variables the app has no login, so only run it that way locally.
+* Keep one worker: cases and PDFs live in memory, and a restart clears them. The free plan also sleeps when idle and has no persistent disk, so reviewer actions are lost on restart. To keep them, use a paid plan with a disk mounted at `/data` and set `SAAKSHYA_DB=/data/reviews.db`.
+* `/healthz` is always open (no password) for the platform's health check.
