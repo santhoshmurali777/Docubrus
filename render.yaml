@@ -1,11 +1,25 @@
 services:
   - type: web
-    name: docubrus
+    name: docroc
     runtime: docker
     plan: free
     healthCheckPath: /healthz
     envVars:
       - key: SAAKSHYA_USER
-        sync: false      # you type this in the Render dashboard
+        sync: false      # the first admin's username; you type this in the Render dashboard
       - key: SAAKSHYA_PASSWORD
         sync: false
+      - key: SAAKSHYA_ALLOW_SIGNUP       # "1" lets applicants create their own account (never reviewers or admins)
+        value: "0"
+      - key: DIGILOCKER_CLIENT_ID        # optional: from your DigiLocker Requester registration
+        sync: false
+      - key: DIGILOCKER_CLIENT_SECRET
+        sync: false
+      - key: DIGILOCKER_REDIRECT_URI     # https://<your-render-url>/digilocker/callback
+        sync: false
+    # To keep cases and reviewer actions across restarts and deploys, switch to a paid plan
+    # (plan: starter) and uncomment this. The free plan has no persistent disk.
+    # disk:
+    #   name: docroc-data
+    #   mountPath: /data
+    #   sizeGB: 1

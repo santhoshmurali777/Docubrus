@@ -1,253 +1,490 @@
 """
-main.py -- the web API and the reviewer page.
-
-PURPOSE   Serve web/reviewer.html and the JSON endpoints: list the seeded scenarios, run one,
-          upload your own PDFs, fetch a stored report, list cases worst-first (triage), serve a page of an
-          original PDF as an image (so a finding can be shown on the page), and record reviewer actions.
-RUN       uvicorn app.main:app --reload      then open http://127.0.0.1:8000
-IMPORTS   orchestrator, db, ledger, pages, triage
-NOTE      No login yet (auth is not built in this version): run it locally, do not expose it.
-          Seeded scenarios run in a throw-away database each time, so reruns never look like
-          certificate reuse. Uploads share one database so cross-application reuse is visible.
-          Handlers are async on purpose: SQLite connections stay on the event-loop thread.
-          Reports and the original PDFs are held in memory only (bounded); reviewer actions go to the shared
-          database, so with SAAKSHYA_DB=<file> they survive a restart (the cases themselves do not, until W7).
+main.py -- FastAPI server, role-checked authentication, live processing API,
+DigiLocker integration, retention management, and web UI.
 """
 from __future__ import annotations
 
-import base64
-import hashlib
+import asyncio
+import datetime
+import io
 import json
 import os
 import secrets
-from collections import OrderedDict
-from typing import List, Literal, Optional
+import time
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
-from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response
-from pydantic import BaseModel, Field, ValidationError
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field
 
-from app import db, ledger, pages, triage
-from app.contracts import ReviewAction, ReviewKind
-from app.documents.classify import classify_pdf, load_signatures
-from app.orchestrator import DEFAULT_CATEGORY, Upload, analyze
+from app import auth, db, digilocker
+from app.config_model import CustomiseConfig, PRESETS, PRESET_COLLEGE
+from app.engine import run_processing_pipeline
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-SYN = os.path.join(ROOT, "data", "synthetic")
 WEB = os.path.join(ROOT, "web")
-MAX_FILES, MAX_BYTES = 15, 10 * 1024 * 1024
-MAX_REPORTS = 50
-MAX_STORED_BYTES = 150 * 1024 * 1024      # original PDFs kept for the page viewer, oldest case dropped first
 
-app = FastAPI(title="Docubrus (prototype)", docs_url=None, redoc_url=None)
+app = FastAPI(title="Docroc Document Verification", docs_url=None, redoc_url=None)
 
-
-@app.middleware("http")
-async def _basic_auth(request: Request, call_next):
-    """Optional shared password. Active only when SAAKSHYA_USER and SAAKSHYA_PASSWORD are both set.
-    /healthz stays open so a hosting platform can check the service. This is one shared login, not
-    per-reviewer accounts: the reviewer name typed on the page is still not verified."""
-    user, pw = os.environ.get("SAAKSHYA_USER"), os.environ.get("SAAKSHYA_PASSWORD")
-    if not (user and pw) or request.url.path == "/healthz":
-        return await call_next(request)
-    ok = False
-    header = request.headers.get("authorization", "")
-    if header.lower().startswith("basic "):
-        try:
-            u, _, p = base64.b64decode(header[6:]).decode("utf-8").partition(":")
-            ok = secrets.compare_digest(u.encode(), user.encode()) & secrets.compare_digest(p.encode(), pw.encode())
-        except Exception:
-            ok = False
-    if ok:
-        return await call_next(request)
-    return Response("Sign in required", status_code=401, headers={"WWW-Authenticate": 'Basic realm="Docubrus"'})
+# Database handle
+_conn = db.connect()
+db.init_db(_conn)
 
 
-_conn = None
-_reports: "OrderedDict[str, dict]" = OrderedDict()
-_files: "OrderedDict[str, dict[str, bytes]]" = OrderedDict()     # case_id -> document_id -> PDF bytes
+def get_actor(request: Request) -> Optional[auth.Actor]:
+    cookie = request.cookies.get(auth.COOKIE)
+    actor = auth.get_session_actor(cookie)
+    if not actor and not auth.enabled():
+        return auth.LOCAL_ADMIN
+    return actor
 
 
-def shared_conn():
-    global _conn
-    if _conn is None:
-        _conn = db.connect(os.environ.get("SAAKSHYA_DB", ":memory:"))
-        db.init_db(_conn)
-    return _conn
+def require_actor(request: Request, *allowed_roles: str) -> auth.Actor:
+    actor = get_actor(request)
+    if not actor:
+        raise HTTPException(401, "Sign in required.")
+    if allowed_roles and actor.role not in allowed_roles:
+        raise HTTPException(403, "You do not have permission to perform this action.")
+    return actor
 
 
-def manifest() -> list[dict]:
-    with open(os.path.join(SYN, "manifest.json"), encoding="utf-8") as fh:
-        return json.load(fh)
-
-
-def _stored_bytes() -> int:
-    return sum(len(b) for docs in _files.values() for b in {id(x): x for x in docs.values()}.values())
-
-
-def keep(report: dict, uploads: Optional[list] = None) -> dict:
-    """Remember a report and the original PDFs it was made from (so pages can be shown later)."""
-    if uploads:
-        by_sha = {hashlib.sha256(u.data).hexdigest(): u.data for u in uploads}
-        held = {}
-        for d in report["documents"]:
-            data = by_sha.get(d["sha256"])
-            d["page_sizes"] = []
-            if data is not None:
-                held[d["id"]] = data
-                try:
-                    d["page_sizes"] = pages.page_sizes(data)
-                except Exception:               # the page viewer is a convenience; never fail a check for it
-                    pass
-        _files[report["case_id"]] = held
-        while len(_files) > 1 and _stored_bytes() > MAX_STORED_BYTES:
-            _files.popitem(last=False)
-    _reports[report["case_id"]] = report
-    while len(_reports) > MAX_REPORTS:
-        gone, _ = _reports.popitem(last=False)
-        _files.pop(gone, None)
-    return report
-
-
-def _run(conn, uploads, outage, aicte_outage, name) -> dict:
-    try:
-        return keep(analyze(conn, uploads, institution_name=name, outages=tuple(outage), aicte_outage=aicte_outage,
-                            category=DEFAULT_CATEGORY), uploads)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-
-
-def _case(case_id: str) -> dict:
-    if case_id not in _reports:
-        raise HTTPException(404, "no such case (reports are kept in memory only)")
-    return _reports[case_id]
-
-
-def _attention(report: dict) -> int:
-    c = report["counts"]
-    return c.get("Contradicted", 0) + c.get("Expired", 0) + len(report["missing_documents"])
-
-
-@app.get("/")
-async def home():
-    return FileResponse(os.path.join(WEB, "reviewer.html"), headers={"Cache-Control": "no-store"})
-
-
-@app.get("/api/scenarios")
-async def scenarios():
-    return [{"id": s["id"], "title": s["title"], "what": s["what"], "files": len(s["files"])} for s in manifest()]
-
-
-@app.post("/api/demo/{scenario_id}")
-async def demo(scenario_id: str, outage: List[str] = Query(default=[]), aicte_outage: bool = False):
-    sc = next((s for s in manifest() if s["id"] == scenario_id), None)    # whitelist: no path built from user input
-    if sc is None:
-        raise HTTPException(404, "unknown scenario")
-    folder = os.path.join(SYN, sc["id"])
-    uploads = [Upload(f"{dt}.pdf", open(os.path.join(folder, f"{dt}.pdf"), "rb").read()) for dt in sc["files"]]
-    conn = db.connect(); db.init_db(conn)
-    try:
-        return _run(conn, uploads, outage, aicte_outage, sc["title"])
-    finally:
-        conn.close()
-
-
-@app.post("/api/cases")
-async def upload_case(files: List[UploadFile] = File(...), institution_name: str = Query("(unnamed)", max_length=120),
-                      outage: List[str] = Query(default=[]), aicte_outage: bool = False):
-    if not files or len(files) > MAX_FILES:
-        raise HTTPException(400, f"send between 1 and {MAX_FILES} PDF files")
-    uploads = []
-    for f in files:
-        data = await f.read(MAX_BYTES + 1)
-        if len(data) > MAX_BYTES:
-            raise HTTPException(413, f"{f.filename}: larger than {MAX_BYTES // (1024 * 1024)} MB")
-        uploads.append(Upload(f.filename or "upload.pdf", data))
-    return _run(shared_conn(), uploads, outage, aicte_outage, institution_name)
-
-
-@app.get("/api/cases")
-async def list_cases():
-    """Triage list: every case held in memory, highest risk first."""
-    conn = shared_conn()
-    rows = [triage.summarise(r, ledger.review_state(conn, cid), r.get("institution", "(unnamed)"), r.get("created_at", ""))
-            for cid, r in _reports.items()]
-    return triage.sort_worst_first(rows)
-
-
-@app.get("/api/cases/{case_id}")
-async def get_case(case_id: str):
-    return _case(case_id)
-
-
-@app.get("/api/cases/{case_id}/documents/{document_id}/pages/{page}")
-async def page_image(case_id: str, document_id: str, page: int):
-    """One page of an original PDF as a PNG, drawn at the same proportions as the claim boxes."""
-    report = _case(case_id)
-    doc = next((d for d in report["documents"] if d["id"] == document_id), None)
-    data = _files.get(case_id, {}).get(document_id)
-    if doc is None or page < 1 or page > doc["pages"]:
-        raise HTTPException(404, "no such page")
-    if data is None:
-        raise HTTPException(404, "the original PDF is no longer held by the server")
-    try:
-        png = pages.render_png(data, doc["sha256"], page)
-    except IndexError:
-        raise HTTPException(404, "no such page")
-    return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
-
-
-# ---- reviewer actions ------------------------------------------------------
-class ActionIn(BaseModel):
-    kind: Literal["comment", "clarify", "resolve", "attest", "approve"]
-    actor: str = Field(max_length=80)
-    note: str = Field(default="", max_length=2000)
-    finding_id: Optional[str] = None
-    resolves_id: Optional[str] = None
-
-
-def _review_payload(conn, case_id: str) -> dict:
-    return {"state": ledger.review_state(conn, case_id),
-            "actions": [a.model_dump(mode="json") for a in db.list_review_actions(conn, case_id)]}
-
-
-@app.get("/api/cases/{case_id}/review")
-async def get_review(case_id: str):
-    _case(case_id)
-    return _review_payload(shared_conn(), case_id)
-
-
-@app.post("/api/cases/{case_id}/actions")
-async def post_action(case_id: str, body: ActionIn):
-    report = _case(case_id)
-    conn = shared_conn()
-    try:
-        action = ReviewAction(id=ledger.new_id("act"), case_id=case_id, finding_id=body.finding_id,
-                              kind=ReviewKind(body.kind), actor=body.actor.strip(), note=body.note.strip(),
-                              resolves_id=body.resolves_id)
-        ledger.record_review_action(conn, action, case_finding_ids={f["finding_id"] for f in report["findings"]},
-                                    attention=_attention(report))
-    except ValidationError as e:
-        raise HTTPException(400, e.errors()[0]["msg"].removeprefix("Value error, "))
-    except ledger.LedgerError as e:
-        raise HTTPException(409, str(e))
-    return {"action": action.model_dump(mode="json"), **_review_payload(conn, case_id)}
-
-
-@app.post("/api/classify")
-async def classify(files: List[UploadFile] = File(...)):
-    """Tell what each PDF is and what proof it carries. Does not verify anything."""
-    if not files or len(files) > MAX_FILES:
-        raise HTTPException(400, f"send between 1 and {MAX_FILES} PDF files")
-    sigs, out = load_signatures(), []
-    for f in files:
-        data = await f.read(MAX_BYTES + 1)
-        if len(data) > MAX_BYTES:
-            raise HTTPException(413, f"{f.filename}: larger than {MAX_BYTES // (1024 * 1024)} MB")
-        out.append({"filename": f.filename, **classify_pdf(data, sigs).as_dict()})
-    return out
-
+# ---- Health & Me -----------------------------------------------------------------------------------------
 
 @app.get("/healthz")
 async def healthz():
-    return JSONResponse({"ok": True})
+    return {"ok": True, "service": "docroc"}
+
+
+@app.get("/api/me")
+async def api_me(request: Request):
+    actor = get_actor(request)
+    return {
+        "auth": auth.enabled(),
+        "signup": auth.signup_allowed(),
+        "user": actor.public() if actor else None,
+    }
+
+
+# ---- Authentication (Role-Checked) -----------------------------------------------------------------------
+
+class LoginPayload(BaseModel):
+    username: str
+    password: str
+    role: str       # "applicant", "reviewer", or "admin"
+
+
+@app.post("/api/login")
+async def api_login(request: Request, body: LoginPayload, response: Response):
+    client_ip = request.client.host if request.client else "unknown"
+    u = auth.normalise_username(body.username)
+    role = (body.role or "").strip().lower()
+
+    # Rate limiting lockout check
+    lockout_key = f"{client_ip}:{u}"
+    if auth.is_locked_out(lockout_key):
+        raise HTTPException(
+            429,
+            "Too many failed sign-in attempts. Account temporarily locked for 10 minutes.",
+            headers={"Retry-After": "600"},
+        )
+
+    generic_error = "Invalid username, password, or role."
+
+    # Look up user
+    user = db.get_user_by_username(_conn, u)
+    if not user:
+        auth.verify_unknown(body.password)
+        auth.record_failure(lockout_key)
+        raise HTTPException(401, generic_error)
+
+    # Password check
+    pw_ok = auth.verify_password(body.password, user["password_hash"])
+    if not pw_ok or user["disabled"]:
+        auth.record_failure(lockout_key)
+        raise HTTPException(401, generic_error)
+
+    # CRITICAL SECURITY RULE: The role picked on the sign-in page MUST match the account role!
+    if user["role"] != role:
+        auth.record_failure(lockout_key)
+        raise HTTPException(401, generic_error)
+
+    # Success: clear failure counters and start session
+    auth.clear_failures(lockout_key)
+    actor = auth.Actor(
+        id=user["id"],
+        username=user["username"],
+        display_name=user["display_name"],
+        role=user["role"],
+    )
+    token = auth.start_session(actor)
+
+    resp = JSONResponse({"user": actor.public()})
+    resp.set_cookie(
+        auth.COOKIE,
+        token,
+        max_age=auth.SESSION_TTL,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        path="/",
+    )
+    return resp
+
+
+@app.post("/api/logout")
+async def api_logout(request: Request):
+    auth.end_session(request.cookies.get(auth.COOKIE))
+    resp = JSONResponse({"signed_in": False})
+    resp.delete_cookie(auth.COOKIE, path="/")
+    return resp
+
+
+class SignupPayload(BaseModel):
+    username: str
+    display_name: str
+    password: str
+
+
+@app.post("/api/signup")
+async def api_signup(request: Request, body: SignupPayload):
+    if not auth.signup_allowed():
+        raise HTTPException(403, "Public applicant sign-up is currently disabled by administrator.")
+
+    ok, msg, user = db.create_user(
+        _conn,
+        username=body.username,
+        display_name=body.display_name,
+        role="applicant",       # Self-signup ALWAYS creates applicant only
+        password=body.password,
+        created_by="self-signup",
+    )
+    if not ok:
+        raise HTTPException(400, msg)
+
+    actor = auth.Actor(
+        id=user["id"],
+        username=user["username"],
+        display_name=user["display_name"],
+        role=user["role"],
+    )
+    token = auth.start_session(actor)
+    resp = JSONResponse({"user": actor.public()})
+    resp.set_cookie(
+        auth.COOKIE,
+        token,
+        max_age=auth.SESSION_TTL,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        path="/",
+    )
+    return resp
+
+
+# ---- Customise Configuration & Presets -------------------------------------------------------------------
+
+@app.get("/api/config")
+async def get_config(request: Request):
+    actor = get_actor(request)
+    cfg = db.get_customise_config(_conn)
+
+    # If applicant or unauthenticated, return sanitized checklist only
+    if not actor or actor.is_applicant:
+        return {
+            "institution_name": cfg.institution_name,
+            "brand_color": cfg.brand_color,
+            "logo_text": cfg.logo_text,
+            "documents": cfg.sanitized_checklist(),
+        }
+
+    # Reviewer or Admin gets full configuration model & available presets
+    return {
+        "config": cfg.model_dump(),
+        "available_presets": list(PRESETS.keys()),
+    }
+
+
+class UpdateConfigPayload(BaseModel):
+    preset_name: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/config")
+async def update_config(request: Request, body: UpdateConfigPayload):
+    require_actor(request, "admin")
+
+    if body.preset_name and body.preset_name in PRESETS:
+        new_cfg = PRESETS[body.preset_name]
+        db.save_customise_config(_conn, new_cfg)
+        return {"ok": True, "message": f"Applied preset '{body.preset_name}'.", "config": new_cfg.model_dump()}
+
+    if body.config:
+        try:
+            parsed = CustomiseConfig.model_validate(body.config)
+            db.save_customise_config(_conn, parsed)
+            return {"ok": True, "message": "Customisation settings saved.", "config": parsed.model_dump()}
+        except Exception as e:
+            raise HTTPException(400, f"Invalid configuration schema: {str(e)}")
+
+    raise HTTPException(400, "Please provide either a valid preset_name or config object.")
+
+
+# ---- Submissions & Processing ----------------------------------------------------------------------------
+
+@app.get("/api/submissions")
+async def list_submissions(request: Request):
+    actor = require_actor(request)
+    if actor.is_applicant:
+        subs = db.list_submissions(_conn, applicant_id=actor.id)
+    else:
+        subs = db.list_submissions(_conn)
+    return subs
+
+
+@app.post("/api/submissions")
+async def create_submission_upload(
+    request: Request,
+    files: List[UploadFile] = File(...),
+):
+    actor = require_actor(request)
+    cfg = db.get_customise_config(_conn)
+
+    # Read uploaded files into memory
+    uploads: Dict[str, Tuple[str, bytes]] = {}
+    for f in files:
+        doc_id = f.filename.split(".")[0].lower()       # e.g., "marksheet_10" from "marksheet_10.pdf"
+        # Match doc_id to configured documents or use first matching doc_def
+        matched_id = None
+        for d in cfg.documents:
+            if d.id.lower() in doc_id or doc_id in d.id.lower():
+                matched_id = d.id
+                break
+        if not matched_id and cfg.documents:
+            # Fallback to unmatched order or key
+            matched_id = doc_id
+
+        data = await f.read()
+        if len(data) > 0 and matched_id:
+            uploads[matched_id] = (f.filename, data)
+
+    if not uploads:
+        raise HTTPException(400, "No valid files received.")
+
+    # Execute processing engine pipeline
+    report = await run_processing_pipeline(cfg, uploads)
+
+    sub_id = secrets.token_hex(8)
+    db.create_submission(
+        _conn,
+        submission_id=sub_id,
+        applicant_id=actor.id,
+        applicant_name=actor.display_name,
+        institution=cfg.institution_name,
+        status=report["verdict"],
+        report=report,
+        files=uploads,
+        delivery_mode=cfg.delivery_mode,
+    )
+
+    # Initial system audit record
+    db.record_review_action(
+        _conn,
+        submission_id=sub_id,
+        actor_id="system",
+        actor_name="Automated Checker",
+        action_kind="verification_run",
+        note=f"Automatic check produced verdict: {report['verdict']}.",
+    )
+
+    return {
+        "id": sub_id,
+        "verdict": report["verdict"],
+        "report": report,
+        "delivery_mode": cfg.delivery_mode,
+    }
+
+
+@app.get("/api/submissions/{submission_id}")
+async def get_submission_detail(request: Request, submission_id: str):
+    actor = require_actor(request)
+    sub = db.get_submission(_conn, submission_id)
+    if not sub:
+        raise HTTPException(404, "Submission not found.")
+
+    if actor.is_applicant and sub["applicant_id"] != actor.id:
+        raise HTTPException(403, "Access denied.")
+
+    actions = db.list_review_actions(_conn, submission_id)
+    sub["audit_actions"] = actions
+    return sub
+
+
+class ReviewActionPayload(BaseModel):
+    action_kind: Literal["comment", "request_clarification", "mark_checked", "approve", "reject"]
+    note: str
+
+
+@app.post("/api/submissions/{submission_id}/action")
+async def post_review_action(request: Request, submission_id: str, body: ReviewActionPayload):
+    actor = require_actor(request, "reviewer", "admin")
+    sub = db.get_submission(_conn, submission_id)
+    if not sub:
+        raise HTTPException(404, "Submission not found.")
+
+    record = db.record_review_action(
+        _conn,
+        submission_id=submission_id,
+        actor_id=actor.id,
+        actor_name=actor.label,
+        action_kind=body.action_kind,
+        note=body.note.strip(),
+    )
+    return {"ok": True, "action": record}
+
+
+@app.get("/api/submissions/{submission_id}/slip")
+async def get_submission_slip(request: Request, submission_id: str):
+    actor = require_actor(request)
+    sub = db.get_submission(_conn, submission_id)
+    if not sub:
+        raise HTTPException(404, "Submission not found.")
+
+    if actor.is_applicant and sub["applicant_id"] != actor.id:
+        raise HTTPException(403, "Access denied.")
+
+    report = sub.get("report", {})
+    verdict = sub["status"]
+    color = "#16a34a" if verdict == "Cleared" else ("#ca8a04" if verdict == "Review" else "#dc2626")
+
+    html = f"""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Verification Result Slip · {sub['id']}</title>
+<style>
+  body {{ font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }}
+  .header {{ border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }}
+  .verdict-badge {{ font-size: 20px; font-weight: 700; color: white; background: {color}; padding: 8px 18px; border-radius: 8px; }}
+  .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }}
+  .item {{ background: #f8fafc; padding: 12px 16px; border-radius: 6px; }}
+  .item b {{ display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }}
+  table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+  th, td {{ text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }}
+  th {{ background: #f1f5f9; }}
+  @media print {{ .noprint {{ display: none; }} }}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1 style="margin:0 0 6px 0;">{sub['institution']}</h1>
+    <p style="margin:0; color:#64748b;">Official Document Verification Report</p>
+  </div>
+  <div class="verdict-badge">{verdict}</div>
+</div>
+
+<div class="grid">
+  <div class="item"><b>SUBMISSION ID</b> {sub['id']}</div>
+  <div class="item"><b>APPLICANT NAME</b> {sub['applicant_name']}</div>
+  <div class="item"><b>DATE PROCESSED</b> {datetime.datetime.fromtimestamp(sub['created_at']).strftime('%Y-%m-%d %H:%M UTC')}</div>
+  <div class="item"><b>DATA RETENTION</b> {'Files Wiped (Data-Only Mode)' if sub['files_wiped'] else 'Files Stored Securely'}</div>
+</div>
+
+<h3>Document Checks</h3>
+<table>
+  <thead><tr><th>Document</th><th>Status</th><th>Legibility</th><th>Digital Signature</th></tr></thead>
+  <tbody>
+    {''.join(f"<tr><td>{d.get('title')}</td><td>{d.get('status').title()}</td><td>{'Good' if d.get('is_legible') else 'Unreadable'}</td><td>{'Present' if d.get('has_digital_signature') else 'None'}</td></tr>" for d in report.get('documents', []))}
+  </tbody>
+</table>
+
+<h3>Cross-Document Checks</h3>
+<table>
+  <thead><tr><th>Check</th><th>Match Type</th><th>Outcome</th><th>Details</th></tr></thead>
+  <tbody>
+    {''.join(f"<tr><td>{c.get('group_name')}</td><td>{c.get('match_type')}</td><td>{'Matched' if c.get('matched') else 'Discrepancy'}</td><td>{c.get('reason')}</td></tr>" for c in report.get('cross_checks', []))}
+  </tbody>
+</table>
+
+<div class="noprint" style="margin-top: 30px;">
+  <button onclick="window.print()" style="padding: 10px 20px; font-weight: 600; cursor: pointer; border-radius: 6px; background: #2250d8; color: white; border: none;">Print Result Slip</button>
+</div>
+</body>
+</html>"""
+    return HTMLResponse(html)
+
+
+# ---- User Management (Admin Only) ------------------------------------------------------------------------
+
+@app.get("/api/users")
+async def api_list_users(request: Request):
+    require_actor(request, "admin")
+    return db.list_users(_conn)
+
+
+class CreateUserPayload(BaseModel):
+    username: str
+    display_name: str
+    role: str
+    password: str
+
+
+@app.post("/api/users")
+async def api_create_user(request: Request, body: CreateUserPayload):
+    admin = require_actor(request, "admin")
+    ok, msg, user = db.create_user(
+        _conn,
+        username=body.username,
+        display_name=body.display_name,
+        role=body.role,
+        password=body.password,
+        created_by=admin.label,
+    )
+    if not ok:
+        raise HTTPException(400, msg)
+    return user
+
+
+class UpdateUserPayload(BaseModel):
+    display_name: Optional[str] = None
+    role: Optional[str] = None
+    disabled: Optional[bool] = None
+    password: Optional[str] = None
+
+
+@app.patch("/api/users/{user_id}")
+async def api_update_user(request: Request, user_id: str, body: UpdateUserPayload):
+    require_actor(request, "admin")
+    ok, msg = db.update_user(
+        _conn,
+        user_id=user_id,
+        display_name=body.display_name,
+        role=body.role,
+        disabled=body.disabled,
+        password=body.password,
+    )
+    if not ok:
+        raise HTTPException(400, msg)
+    return {"ok": True, "message": msg}
+
+
+@app.delete("/api/users/{user_id}")
+async def api_delete_user(request: Request, user_id: str):
+    require_actor(request, "admin")
+    ok, msg = db.delete_user(_conn, user_id)
+    if not ok:
+        raise HTTPException(400, msg)
+    return {"ok": True, "message": msg}
+
+
+# ---- Web UI ----------------------------------------------------------------------------------------------
+
+@app.get("/login")
+async def serve_login(request: Request):
+    return FileResponse(os.path.join(WEB, "login.html"))
+
+
+@app.get("/")
+async def serve_root(request: Request):
+    return FileResponse(os.path.join(WEB, "reviewer.html"))

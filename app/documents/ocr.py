@@ -30,6 +30,7 @@ from app.documents.pdf_text import Line, PageText, PdfText, Word
 os.environ.setdefault("OMP_THREAD_LIMIT", "1")   # one thread per tesseract; we parallelise across pages instead
 
 DPI = 250
+OCR_PAGE_TIMEOUT = 60    # seconds per page; a page that takes longer fails like any unreadable scan
 MAX_PAGES = 30
 CONF_MIN = 65.0          # page mean and per-claim minimum
 SHARP_MIN = 150.0        # median Laplacian variance in word boxes: sharp pages ~8000, mild blur 500-1500, unreadable <100
@@ -110,7 +111,7 @@ def _sharpness(img, words, k: float) -> float:
 
 def _page(i: int, img) -> tuple[PageText, PageQuality]:
     full, img = img, _mask_qr(img)
-    d = pytesseract.image_to_data(img, lang=languages(), config="--psm 6", output_type=Output.DICT)
+    d = pytesseract.image_to_data(img, lang=languages(), config="--psm 6", output_type=Output.DICT, timeout=OCR_PAGE_TIMEOUT)
     k = 72.0 / DPI
     rows: dict = {}
     for j, raw in enumerate(d["text"]):

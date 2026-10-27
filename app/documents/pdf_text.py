@@ -19,6 +19,7 @@ from typing import Optional
 
 import pdfplumber
 
+MAX_PAGES = 60          # a certificate is a handful of pages; more is refused, not slowly read
 LINE_TOLERANCE = 3.0     # words whose tops differ by less than this share a line
 
 
@@ -73,6 +74,8 @@ def read_pdf(data: bytes) -> PdfText:
     pages: list[PageText] = []
     try:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
+            if len(pdf.pages) > MAX_PAGES:
+                raise ValueError(f"PDF has more than {MAX_PAGES} pages")
             for i, page in enumerate(pdf.pages, start=1):
                 words = [Word(w["text"], float(w["x0"]), float(w["top"]), float(w["x1"]), float(w["bottom"]))
                          for w in page.extract_words()]

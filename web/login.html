@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docroc · Sign in</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232250d8'/%3E%3Cpath d='M9.5 16.5l4.5 4.5 8.5-9.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{color-scheme:light;--bg:#f8fafc;--surface:#fff;--ink:#0f172a;--ink2:#334155;--mute:#64748b;--line:#e2e8f0;--brand:#2250d8;--brand-d:#1a3fb0;--red:#dc2626;--redbg:#fef2f2;--sans:"Inter",system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:var(--surface);color:var(--ink);font:14.5px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(150deg,#eff6ff 0%,#f8fafc 60%,#fff 100%);border-right:1px solid var(--line);padding:56px;display:flex;flex-direction:column;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .logo-icon{width:40px;height:40px;border-radius:10px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:20px}
+.brand b{font-size:22px;letter-spacing:-.02em}
+.hero h2{font-size:36px;line-height:1.2;letter-spacing:-.025em;margin:0 0 16px;max-width:14em;color:var(--ink)}
+.hero p{color:var(--mute);font-size:16px;max-width:32em;margin:0 0 32px}
+.features{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+.features li{display:flex;gap:14px;align-items:flex-start;color:var(--ink2);font-weight:500}
+.features .dot{flex:none;width:24px;height:24px;border-radius:50%;background:#e0e7ff;color:var(--brand);display:grid;place-items:center;margin-top:1px;font-size:13px}
+.pane{display:grid;place-items:center;padding:40px}
+.card{width:100%;max-width:400px}
+h1{font-size:28px;letter-spacing:-.02em;margin:0 0 6px}
+p.sub{margin:0 0 24px;color:var(--mute);font-size:14px}
+form{display:grid;gap:16px}
+label{display:grid;gap:6px;font-size:13px;color:var(--ink2);font-weight:600}
+input,select{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);width:100%}
+input:focus,select:focus{outline:2px solid var(--brand);outline-offset:1px}
+.role-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#f1f5f9;padding:4px;border-radius:8px;margin-bottom:8px}
+.role-tab{font:inherit;font-size:13px;font-weight:600;padding:8px;border:none;background:transparent;color:var(--mute);cursor:pointer;border-radius:6px;text-align:center}
+.role-tab.active{background:white;color:var(--brand);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+button.primary{font:inherit;font-weight:600;cursor:pointer;border-radius:8px;border:none;background:var(--brand);color:#fff;padding:12px;margin-top:6px}
+button.primary:hover:not(:disabled){background:var(--brand-d)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.err{color:var(--red);background:var(--redbg);border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:13.5px}
+.swap{margin-top:20px;font-size:13.5px;color:var(--mute);text-align:center}
+.swap button{font:inherit;background:none;border:none;color:var(--brand);font-weight:600;cursor:pointer;padding:0}
+.swap button:hover{text-decoration:underline}
+@media(max-width:860px){body{grid-template-columns:1fr}.hero{display:none}}
+</style>
+</head>
+<body>
+<section class="hero">
+  <div class="brand">
+    <div class="logo-icon">&#10003;</div>
+    <b>Docroc</b>
+  </div>
+  <div>
+    <h2>Know which documents to trust.</h2>
+    <p>Automated verification for admissions, licencing, and institutional qualification. Compare claims across documents and detect discrepancies in seconds.</p>
+    <ul class="features">
+      <li><span class="dot">&#10003;</span>Parallel document validation with strict processing deadlines</li>
+      <li><span class="dot">&#10003;</span>Cross-document claim reconciliation ("Papers, Please" engine)</li>
+      <li><span class="dot">&#10003;</span>Tampering, expiry, and manipulation detection</li>
+      <li><span class="dot">&#10003;</span>Granular role-based security: Applicant, Reviewer, and Admin</li>
+    </ul>
+  </div>
+  <div style="font-size:13px; color:var(--mute);">Docroc Intelligent Document Verification Platform</div>
+</section>
+
+<main class="pane">
+<div class="card">
+  <section id="signin">
+    <h1>Sign in</h1>
+    <p class="sub">Select your account role and enter your credentials.</p>
+
+    <!-- Role Picker: The role selected MUST match the account role -->
+    <label>Select Role</label>
+    <div class="role-tabs">
+      <button type="button" class="role-tab active" data-role="applicant">Applicant</button>
+      <button type="button" class="role-tab" data-role="reviewer">Reviewer</button>
+      <button type="button" class="role-tab" data-role="admin">Admin</button>
+    </div>
+
+    <form id="fIn">
+      <input type="hidden" id="roleIn" value="applicant">
+      <label>Username<input id="u" name="username" autocomplete="username" required maxlength="64" placeholder="e.g. admin or applicant"></label>
+      <label>Password<input id="p" name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+      <div class="err" id="eIn" role="alert" style="display:none;"></div>
+      <button class="primary" id="bIn" type="submit">Sign in as Applicant</button>
+    </form>
+    <div class="swap" id="toUp" style="display:none;">New applicant? <button type="button" id="goUp">Create an account</button></div>
+  </section>
+
+  <section id="signup" style="display:none;">
+    <h1>Create Applicant Account</h1>
+    <p class="sub">Sign up to upload your documents and track your verification status.</p>
+    <form id="fUp">
+      <label>Full Name<input id="n" name="name" autocomplete="name" required maxlength="60" placeholder="e.g. Jane Doe"></label>
+      <label>Username<input id="u2" name="username" autocomplete="username" required maxlength="32" placeholder="Letters, numbers, underscores"></label>
+      <label>Password<input id="p2" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128"></label>
+      <div class="err" id="eUp" role="alert" style="display:none;"></div>
+      <button class="primary" id="bUp" type="submit">Create account</button>
+    </form>
+    <div class="swap">Already have an account? <button type="button" id="goIn">Sign in</button></div>
+  </section>
+</div>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let activeRole = "applicant";
+
+document.querySelectorAll(".role-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".role-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    activeRole = tab.dataset.role;
+    $("roleIn").value = activeRole;
+    const label = activeRole.charAt(0).toUpperCase() + activeRole.slice(1);
+    $("bIn").textContent = "Sign in as " + label;
+  });
+});
+
+async function api(url, body) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    throw new Error(data.detail || "Sign in failed (" + r.status + ")");
+  }
+  return data;
+}
+
+$("fIn").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("eIn").style.display = "none";
+  $("bIn").disabled = true;
+  try {
+    await api("/api/login", {
+      username: $("u").value,
+      password: $("p").value,
+      role: $("roleIn").value
+    });
+    location.replace("/");
+  } catch (err) {
+    $("eIn").textContent = err.message;
+    $("eIn").style.display = "block";
+    $("bIn").disabled = false;
+  }
+});
+
+$("fUp").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("eUp").style.display = "none";
+  $("bUp").disabled = true;
+  try {
+    await api("/api/signup", {
+      username: $("u2").value,
+      display_name: $("n").value,
+      password: $("p2").value
+    });
+    location.replace("/");
+  } catch (err) {
+    $("eUp").textContent = err.message;
+    $("eUp").style.display = "block";
+    $("bUp").disabled = false;
+  }
+});
+
+$("goUp").addEventListener("click", () => {
+  $("signin").style.display = "none";
+  $("signup").style.display = "block";
+});
+$("goIn").addEventListener("click", () => {
+  $("signup").style.display = "none";
+  $("signin").style.display = "block";
+});
+
+(async () => {
+  try {
+    const me = await (await fetch("/api/me")).json();
+    if (me.signup) $("toUp").style.display = "block";
+    if (me.user) location.replace("/");
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
