@@ -45,13 +45,24 @@ from pydantic import BaseModel, Field
 
 from app import auth, db, digilocker
 from app import pages as _pages
-from app.config_model import CustomiseConfig, PRESETS, PRESET_COLLEGE
+from app.config_model import (
+    CustomiseConfig, PRESETS, PRESET_COLLEGE, PRESET_AICTE, DocumentDef, AICTE_CERTIFICATES_CATALOG
+)
 from app.engine import run_processing_pipeline
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 WEB = os.path.join(ROOT, "web")
 
 app = FastAPI(title="Docroc Document Verification", docs_url=None, redoc_url=None)
+
+# Enable CORS so any website can call the API or embed widgets
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Database handle
 _conn = db.connect()
@@ -133,7 +144,7 @@ async def api_me(request: Request):
         "auth": auth.enabled(),
         "signup": signup,
         "user": actor.public() if actor else None,
-        "ai_enabled": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "ai_enabled": bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")),
         "smtp_configured": _smtp_configured(),
         "session_expires_at": expires_at,
     }
@@ -145,7 +156,7 @@ async def api_admin_health(request: Request):
     db_signup = db.get_signup_allowed_db(_conn)
     signup = db_signup if db_signup is not None else auth.signup_allowed()
     return {
-        "ai_enabled": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "ai_enabled": bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")),
         "smtp_configured": _smtp_configured(),
         "signup_allowed": signup,
         "digilocker_configured": digilocker.settings().configured,
@@ -317,6 +328,62 @@ async def update_config(request: Request, body: UpdateConfigPayload):
     raise HTTPException(400, "Please provide either a valid preset_name or config object.")
 
 
+@app.get("/api/aicte/catalog")
+async def get_aicte_catalog(request: Request):
+    """Return all 14 official AICTE Approval Process Handbook certificates."""
+    require_actor(request, "admin", "reviewer")
+    return {"catalog": [doc.model_dump() for doc in AICTE_CERTIFICATES_CATALOG]}
+
+
+@app.post("/api/config/add-document")
+async def add_document_to_config(request: Request, doc: DocumentDef):
+    """Add or update an individual document in the active customisation checklist."""
+    require_actor(request, "admin")
+    cfg = db.get_customise_config(_conn)
+    existing_ids = [d.id for d in cfg.documents]
+    if doc.id in existing_ids:
+        cfg.documents = [doc if d.id == doc.id else d for d in cfg.documents]
+    else:
+        cfg.documents.append(doc)
+    db.save_customise_config(_conn, cfg)
+    return {"ok": True, "message": f"Added '{doc.title}' to checklist.", "config": cfg.model_dump()}
+
+
+@app.delete("/api/config/documents/{doc_id}")
+async def remove_document_from_config(request: Request, doc_id: str):
+    """Remove a document from the active customisation checklist."""
+    require_actor(request, "admin")
+    cfg = db.get_customise_config(_conn)
+    cfg.documents = [d for d in cfg.documents if d.id != doc_id]
+    db.save_customise_config(_conn, cfg)
+    return {"ok": True, "message": f"Removed document '{doc_id}'.", "config": cfg.model_dump()}
+
+
+class WebhookPayload(BaseModel):
+    url: str
+
+
+@app.get("/api/settings/webhook")
+async def get_webhook_setting(request: Request):
+    require_actor(request, "admin")
+    cur = _conn.execute("SELECT value_json FROM settings WHERE key = 'webhook_url'")
+    row = cur.fetchone()
+    val = json.loads(row["value_json"]) if row else ""
+    return {"webhook_url": val}
+
+
+@app.post("/api/settings/webhook")
+async def set_webhook_setting(request: Request, body: WebhookPayload):
+    require_actor(request, "admin")
+    with _conn:
+        _conn.execute(
+            "INSERT INTO settings (key, value_json, updated_at) VALUES ('webhook_url', ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at",
+            (json.dumps(body.url.strip()), time.time()),
+        )
+    return {"ok": True, "webhook_url": body.url.strip()}
+
+
 # ---- Submissions & Processing ----------------------------------------------------------------------------
 
 @app.get("/api/submissions")
@@ -368,6 +435,103 @@ async def export_submissions_csv(request: Request):
         content=buf.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=submissions.csv"},
+    )
+
+
+@app.get("/api/submissions/export.excel")
+async def export_submissions_excel(request: Request):
+    """Download all submissions as a styled Microsoft Excel XML workbook."""
+    require_actor(request, "reviewer", "admin")
+    subs = db.list_submissions(_conn, limit=10000)
+
+    rows_xml = []
+    for s in subs:
+        detail = db.get_submission(_conn, s["id"])
+        rep = detail.get("report", {}) if detail else {}
+        extracted = rep.get("extracted_fields", {})
+        doc_count = len(rep.get("documents", []))
+        discrepancies = sum(1 for cc in rep.get("cross_checks", []) if not cc.get("matched"))
+        status = s["status"]
+        style_id = "Cleared" if status == "Cleared" else ("Review" if status == "Review" else "NotCleared")
+
+        def xml_esc(val):
+            return str(val or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+        summary_parts = [f"{k}: {v}" for k, v in list(extracted.items())[:6] if v is not None]
+        summary_str = "; ".join(summary_parts) if summary_parts else "None"
+
+        rows_xml.append(f"""
+   <Row ss:Height="20">
+    <Cell><Data ss:Type="String">{xml_esc(s["id"])}</Data></Cell>
+    <Cell><Data ss:Type="String">{xml_esc(s["applicant_name"])}</Data></Cell>
+    <Cell><Data ss:Type="String">{xml_esc(s["institution"])}</Data></Cell>
+    <Cell ss:StyleID="{style_id}"><Data ss:Type="String">{xml_esc(status)}</Data></Cell>
+    <Cell><Data ss:Type="Number">{s.get("risk", 0)}</Data></Cell>
+    <Cell><Data ss:Type="Number">{doc_count}</Data></Cell>
+    <Cell><Data ss:Type="Number">{discrepancies}</Data></Cell>
+    <Cell><Data ss:Type="String">{xml_esc(datetime.datetime.fromtimestamp(s["created_at"]).strftime("%Y-%m-%d %H:%M"))}</Data></Cell>
+    <Cell><Data ss:Type="String">{xml_esc(summary_str)}</Data></Cell>
+    <Cell><Data ss:Type="String">{"Yes" if s.get("files_wiped") else "No"}</Data></Cell>
+   </Row>""")
+
+    xml_content = f"""<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Header">
+   <Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="11"/>
+   <Interior ss:Color="#2250D8" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="Cleared">
+   <Font ss:Bold="1" ss:Color="#166534"/>
+   <Interior ss:Color="#DCFCE7" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="Review">
+   <Font ss:Bold="1" ss:Color="#92400E"/>
+   <Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="NotCleared">
+   <Font ss:Bold="1" ss:Color="#991B1B"/>
+   <Interior ss:Color="#FEE2E2" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Docroc Master Data">
+  <Table>
+   <Column ss:Width="100"/>
+   <Column ss:Width="150"/>
+   <Column ss:Width="200"/>
+   <Column ss:Width="110"/>
+   <Column ss:Width="80"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="130"/>
+   <Column ss:Width="320"/>
+   <Column ss:Width="90"/>
+   <Row ss:Height="26">
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Submission ID</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Applicant Name</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Institution</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Verification Verdict</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Risk Score</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Document Count</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Discrepancy Count</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Submission Date</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Extracted Key Claims</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Data Wiped</Data></Cell>
+   </Row>
+   {"".join(rows_xml)}
+  </Table>
+ </Worksheet>
+</Workbook>"""
+
+    return Response(
+        content=xml_content,
+        media_type="application/vnd.ms-excel",
+        headers={"Content-Disposition": "attachment; filename=docroc_master_sheet.xls"},
     )
 
 
@@ -443,11 +607,105 @@ async def create_submission_upload(
             body,
         )
 
+    # Webhook notification to external systems if configured
+    try:
+        cur = _conn.execute("SELECT value_json FROM settings WHERE key = 'webhook_url'")
+        row = cur.fetchone()
+        wh_url = json.loads(row["value_json"]) if row else ""
+        if wh_url:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.post(
+                    wh_url,
+                    json={
+                        "event": "submission.completed",
+                        "submission_id": sub_id,
+                        "applicant_id": actor.id,
+                        "applicant_name": actor.display_name,
+                        "institution": cfg.institution_name,
+                        "verdict": report["verdict"],
+                        "report": report,
+                        "timestamp": time.time(),
+                    },
+                )
+    except Exception as exc:
+        print(f"[WEBHOOK ERROR] {exc}")
+
     return {
         "id": sub_id,
         "verdict": report["verdict"],
         "report": report,
         "delivery_mode": cfg.delivery_mode,
+    }
+
+
+@app.post("/api/submissions/direct")
+async def create_submission_direct(
+    request: Request,
+    applicant_name: str = Form("Online Applicant"),
+    files: List[UploadFile] = File(...),
+):
+    """Direct API endpoint for external websites to submit documents for automated verification."""
+    cfg = db.get_customise_config(_conn)
+    uploads: Dict[str, Tuple[str, bytes]] = {}
+    for f in files:
+        doc_id = f.filename.split(".")[0].lower()
+        matched_id = None
+        for d in cfg.documents:
+            if d.id.lower() in doc_id or doc_id in d.id.lower():
+                matched_id = d.id
+                break
+        if not matched_id and cfg.documents:
+            matched_id = doc_id
+        data = await f.read()
+        if len(data) > 0 and matched_id:
+            uploads[matched_id] = (f.filename, data)
+
+    if not uploads:
+        raise HTTPException(400, "No valid files received.")
+
+    report = await run_processing_pipeline(cfg, uploads)
+    sub_id = secrets.token_hex(8)
+    db.create_submission(
+        _conn,
+        submission_id=sub_id,
+        applicant_id="external_website",
+        applicant_name=applicant_name,
+        institution=cfg.institution_name,
+        status=report["verdict"],
+        report=report,
+        files=uploads,
+        delivery_mode=cfg.delivery_mode,
+    )
+
+    # Webhook trigger if configured
+    try:
+        cur = _conn.execute("SELECT value_json FROM settings WHERE key = 'webhook_url'")
+        row = cur.fetchone()
+        wh_url = json.loads(row["value_json"]) if row else ""
+        if wh_url:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.post(
+                    wh_url,
+                    json={
+                        "event": "submission.completed",
+                        "submission_id": sub_id,
+                        "applicant_id": "external_website",
+                        "applicant_name": applicant_name,
+                        "institution": cfg.institution_name,
+                        "verdict": report["verdict"],
+                        "report": report,
+                        "timestamp": time.time(),
+                    },
+                )
+    except Exception as exc:
+        print(f"[WEBHOOK DIRECT ERROR] {exc}")
+
+    return {
+        "ok": True,
+        "submission_id": sub_id,
+        "applicant_name": applicant_name,
+        "verdict": report["verdict"],
+        "report": report,
     }
 
 
@@ -873,6 +1131,75 @@ async def serve_login(request: Request):
 async def serve_reset_password(request: Request):
     """Serve the login page; JS detects ?token= and shows the reset-password form."""
     return FileResponse(os.path.join(WEB, "login.html"))
+
+
+@app.get("/widget.js")
+async def serve_widget_js(request: Request):
+    """Serve the universal drop-in JavaScript widget for connecting to any website."""
+    base_url = str(request.base_url).rstrip("/")
+    js_content = f"""(function() {{
+  "use strict";
+  const BASE = "{base_url}";
+
+  function openDocrocModal() {{
+    let m = document.getElementById("docroc-modal");
+    if (!m) {{
+      m = document.createElement("div");
+      m.id = "docroc-modal";
+      m.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);";
+      m.innerHTML = `
+        <div style="background:#fff;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);width:100%;max-width:760px;height:85vh;max-height:800px;display:flex;flex-direction:column;overflow:hidden;position:relative;">
+          <div style="padding:12px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
+            <div style="font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;">
+              <span style="background:#2250d8;color:#fff;border-radius:6px;width:24px;height:24px;display:grid;place-items:center;font-size:13px;font-weight:700;">✓</span>
+              Docroc Document Verification
+            </div>
+            <button id="docroc-modal-close" style="border:none;background:none;font-size:18px;cursor:pointer;color:#64748b;padding:4px 8px;border-radius:4px;">✕</button>
+          </div>
+          <iframe id="docroc-iframe" src="${{BASE}}/embed" style="flex:1;border:none;width:100%;height:100%;"></iframe>
+        </div>
+      `;
+      document.body.appendChild(m);
+      document.getElementById("docroc-modal-close").onclick = () => {{ m.style.display = "none"; }};
+      m.onclick = (e) => {{ if (e.target === m) m.style.display = "none"; }};
+    }} else {{
+      m.style.display = "flex";
+    }}
+  }}
+
+  // Listen for verification result events from the embed iframe
+  window.addEventListener("message", function(e) {{
+    if (e.data && e.data.type === "docroc:verified") {{
+      console.log("[Docroc Widget] Verification Completed:", e.data);
+      window.dispatchEvent(new CustomEvent("docroc:verified", {{ detail: e.data }}));
+    }}
+  }});
+
+  // Auto-bind any button with data-docroc-button or class docroc-trigger
+  document.addEventListener("DOMContentLoaded", function() {{
+    document.querySelectorAll("[data-docroc-button], .docroc-trigger").forEach(btn => {{
+      btn.addEventListener("click", (e) => {{
+        e.preventDefault();
+        openDocrocModal();
+      }});
+    }});
+  }});
+
+  window.Docroc = {{
+    open: openDocrocModal,
+    verifyUrl: BASE + "/embed"
+  }};
+}})();"""
+    return Response(content=js_content, media_type="application/javascript")
+
+
+@app.get("/embed")
+async def serve_embed_page(request: Request):
+    """Serve the embeddable document verification portal for iframes on external websites."""
+    embed_path = os.path.join(WEB, "embed.html")
+    if os.path.exists(embed_path):
+        return FileResponse(embed_path)
+    return FileResponse(os.path.join(WEB, "reviewer.html"))
 
 
 @app.get("/")

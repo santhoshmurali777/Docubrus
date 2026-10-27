@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docroc Verification Embed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f8fafc;--surface:#fff;--ink:#0f172a;--ink2:#334155;--mute:#64748b;--line:#e2e8f0;--brand:#2250d8;--brand-d:#1a3fb0;--grn:#16a34a;--red:#dc2626;--ylw:#ca8a04;--sans:"Inter",system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;padding:20px;background:var(--bg);color:var(--ink);font:13.5px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+h2{margin:0 0 6px;font-size:18px}
+.checklist{display:grid;gap:8px;margin:14px 0}
+.check-item{border:1px solid var(--line);border-radius:6px;padding:10px 14px;background:#fff;display:flex;justify-content:space-between;align-items:center}
+.check-item.required{border-left:3px solid var(--brand)}
+.dropzone{border:2px dashed #cbd5e1;border-radius:8px;padding:24px;text-align:center;background:#f8fafc;cursor:pointer;transition:.15s;margin-top:14px}
+.dropzone:hover{border-color:var(--brand);background:#eff6ff}
+.btn{font:inherit;font-weight:600;cursor:pointer;border-radius:6px;padding:9px 18px;border:none}
+.btn-primary{background:var(--brand);color:white}
+.btn-primary:hover:not(:disabled){background:var(--brand-d)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.badge{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:4px;text-transform:uppercase}
+.badge.cleared{background:#dcfce7;color:#166534}
+.badge.review{background:#fef3c7;color:#92400e}
+.badge.not_cleared{background:#fee2e2;color:#991b1b}
+.progress-bar{height:6px;width:100%;background:#e2e8f0;border-radius:3px;overflow:hidden;margin:12px 0}
+.progress-fill{height:100%;background:var(--brand);width:0%;transition:width .3s}
+</style>
+</head>
+<body>
+<div class="card" id="uploadCard">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div>
+      <h2 id="instName">Document Verification Portal</h2>
+      <p style="margin:0;color:var(--mute);font-size:12.5px;">Upload the required documents for automated verification.</p>
+    </div>
+    <span style="font-size:11px;font-weight:700;color:var(--brand);background:#eff6ff;padding:4px 8px;border-radius:12px;">Docroc Verified</span>
+  </div>
+
+  <div style="margin-bottom:12px;">
+    <label style="font-weight:600;font-size:12.5px;display:block;margin-bottom:4px;">Applicant Full Name</label>
+    <input type="text" id="applicantName" placeholder="e.g. Jane Doe" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:6px;font:inherit;">
+  </div>
+
+  <div style="font-weight:600;font-size:12.5px;margin-bottom:6px;">Required Documents Checklist:</div>
+  <div id="checklistItems" class="checklist"></div>
+
+  <div class="dropzone" id="dropArea">
+    <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg" style="display:none;">
+    <div style="font-size:20px;margin-bottom:4px;">📄</div>
+    <div style="font-weight:600;">Choose files or drag &amp; drop PDF documents here</div>
+    <div style="color:var(--mute);font-size:11.5px;margin-top:2px;">PDF, JPG or PNG up to 10MB</div>
+  </div>
+
+  <div id="selectedFiles" style="margin:12px 0;display:grid;gap:6px;"></div>
+
+  <div id="uploadProgress" style="display:none;">
+    <div style="display:flex;justify-content:space-between;font-weight:600;font-size:12px;">
+      <span id="progressStatus">Verifying documents...</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+    <button class="btn btn-primary" id="btnRunVerification" disabled>Submit for Verification</button>
+  </div>
+</div>
+
+<div class="card" id="resultCard" style="display:none;margin-top:16px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px;">
+    <div>
+      <h2 style="margin:0;">Verification Report</h2>
+      <div id="subInfo" style="color:var(--mute);font-size:12px;"></div>
+    </div>
+    <span class="badge" id="verdictBadge">Pending</span>
+  </div>
+  <div id="verdictDetails" style="margin-bottom:16px;font-size:13px;"></div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button class="btn" style="background:#f1f5f9;border:1px solid var(--line);" onclick="location.reload()">Verify Another</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let uploadedFiles = [];
+
+async function init() {
+  try {
+    const res = await (await fetch("/api/config")).json();
+    $("instName").textContent = res.institution_name || "Document Verification Portal";
+    const docs = res.documents || [];
+    $("checklistItems").innerHTML = docs.map(d => `
+      <div class="check-item ${d.required ? 'required' : ''}">
+        <div>
+          <div style="font-weight:600;">${d.title} ${d.required ? '<span style="color:var(--red);">*</span>' : '(Optional)'}</div>
+          <div style="color:var(--mute);font-size:11.5px;">${d.description || ''}</div>
+        </div>
+        <div style="font-size:11px;color:var(--mute);">${(d.accepted_formats||[]).join(', ').toUpperCase()}</div>
+      </div>
+    `).join('');
+  } catch (e) {}
+}
+
+const dropArea = $("dropArea");
+const fileInput = $("fileInput");
+dropArea.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", e => handleFiles(e.target.files));
+dropArea.addEventListener("dragover", e => { e.preventDefault(); dropArea.style.borderColor = "var(--brand)"; });
+dropArea.addEventListener("dragleave", () => { dropArea.style.borderColor = "#cbd5e1"; });
+dropArea.addEventListener("drop", e => {
+  e.preventDefault();
+  dropArea.style.borderColor = "#cbd5e1";
+  handleFiles(e.dataTransfer.files);
+});
+
+function handleFiles(files) {
+  for (const f of files) {
+    if (!uploadedFiles.some(x => x.name === f.name)) uploadedFiles.push(f);
+  }
+  renderSelected();
+}
+
+function renderSelected() {
+  $("selectedFiles").innerHTML = uploadedFiles.map((f, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:#f1f5f9;padding:6px 10px;border-radius:6px;font-size:12px;">
+      <span>📄 <b>${f.name}</b> (${Math.round(f.size/1024)} KB)</span>
+      <button onclick="removeFile(${i})" style="border:none;background:none;color:var(--red);cursor:pointer;font-weight:600;">Remove</button>
+    </div>
+  `).join('');
+  $("btnRunVerification").disabled = uploadedFiles.length === 0;
+}
+
+function removeFile(i) {
+  uploadedFiles.splice(i, 1);
+  renderSelected();
+}
+
+$("btnRunVerification").addEventListener("click", async () => {
+  if (uploadedFiles.length === 0) return;
+  const name = ($("applicantName").value || "").trim() || "Online Applicant";
+  $("btnRunVerification").disabled = true;
+  $("uploadProgress").style.display = "block";
+  $("progressFill").style.width = "40%";
+  $("progressStatus").textContent = "Uploading & running automated checks...";
+  $("progressPct").textContent = "40%";
+
+  const fd = new FormData();
+  fd.append("applicant_name", name);
+  uploadedFiles.forEach(f => fd.append("files", f));
+
+  try {
+    const res = await fetch("/api/submissions/direct", { method: "POST", body: fd });
+    const data = await res.json();
+    $("progressFill").style.width = "100%";
+    $("progressPct").textContent = "100%";
+
+    // Notify parent window (for widget embed)
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: "docroc:verified",
+        submission_id: data.submission_id,
+        applicant_name: data.applicant_name,
+        verdict: data.verdict,
+        report: data.report
+      }, "*");
+    }
+
+    $("uploadCard").style.display = "none";
+    $("resultCard").style.display = "block";
+    $("subInfo").textContent = `Submission #${data.submission_id} · ${name}`;
+    const v = data.verdict;
+    const vb = $("verdictBadge");
+    vb.textContent = v;
+    vb.className = "badge " + v.toLowerCase().replace(/ /g, '_');
+
+    const rep = data.report || {};
+    const reasons = rep.verdict_reasons || [];
+    $("verdictDetails").innerHTML = reasons.length > 0
+      ? `<div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:6px;color:#991b1b;">
+           <b>Key Discrepancies & Issues:</b>
+           <ul style="margin:6px 0 0 16px;padding:0;">${reasons.map(r => `<li>${r}</li>`).join('')}</ul>
+         </div>`
+      : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px;border-radius:6px;color:#166534;">
+           ✓ All uploaded documents successfully cleared verification with 0 discrepancies.
+         </div>`;
+  } catch (err) {
+    alert("Verification failed: " + err.message);
+    $("btnRunVerification").disabled = false;
+    $("uploadProgress").style.display = "none";
+  }
+});
+
+init();
+</script>
+</body>
+</html>

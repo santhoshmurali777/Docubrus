@@ -54,8 +54,38 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
 .dropzone:hover{border-color:var(--brand);background:#eff6ff}
 .progress-bar{height:6px;width:100%;background:#e2e8f0;border-radius:3px;overflow:hidden;margin:16px 0}
 .progress-fill{height:100%;background:var(--brand);width:0%;transition:width .3s}
+.view{display:none;}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:grid;place-items:center;z-index:100}
 .modal-content{background:white;border-radius:12px;padding:28px;max-width:550px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,.1)}
+
+/* Reviewer Workspace & Inspector Styles */
+.reviewer-workspace{display:grid; grid-template-columns:360px 1fr; gap:16px; align-items:start;}
+@media(max-width:960px){.reviewer-workspace{grid-template-columns:1fr;}}
+.case-queue{display:grid; gap:8px; max-height:calc(100vh - 210px); overflow-y:auto; padding-right:4px;}
+.case-card{background:white; border:1px solid var(--line); border-radius:10px; padding:14px; cursor:pointer; transition:.15s;}
+.case-card:hover{border-color:var(--brand); box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.case-card.active{border-color:var(--brand); background:#f0f7ff; box-shadow:0 0 0 2px var(--brand);}
+.inspector-pane{background:white; border:1px solid var(--line); border-radius:12px; padding:20px; min-height:600px;}
+.metrics-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:16px;}
+.metric-card{background:white; border:1px solid var(--line); border-radius:10px; padding:14px 18px;}
+.metric-num{font-size:24px; font-weight:800; color:var(--ink);}
+.metric-label{font-size:12px; color:var(--mute); margin-top:2px;}
+.sub-tabs{display:flex; border-bottom:1px solid var(--line); margin-bottom:16px; gap:8px;}
+.sub-tab{padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; background:none; border:none; border-bottom:2px solid transparent; color:var(--mute);}
+.sub-tab.active{color:var(--brand); border-bottom-color:var(--brand);}
+
+/* Excel Spreadsheet Styles */
+.sheet-container{border:1px solid #cbd5e1; border-radius:8px; overflow:auto; max-height:650px; background:white;}
+.sheet-table{width:100%; border-collapse:collapse; font-size:12.5px; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;}
+.sheet-table th.col-letter{background:#f1f5f9; text-align:center; font-weight:700; color:#64748b; font-size:11px; padding:4px; border:1px solid #cbd5e1; user-select:none;}
+.sheet-table th.col-title{background:#e2e8f0; font-weight:700; color:#1e293b; padding:8px 10px; border:1px solid #cbd5e1; white-space:nowrap; text-align:left;}
+.sheet-table td{border:1px solid #e2e8f0; padding:6px 10px; white-space:nowrap;}
+.sheet-table td.row-num{background:#f8fafc; font-weight:700; color:#64748b; text-align:center; user-select:none; border-right:2px solid #cbd5e1;}
+.sheet-table tr:hover td{background:#f8fafc;}
+.sheet-table tr.selected td{background:#eff6ff;}
+
+/* Code Snippet Styles */
+.code-snippet{background:#0f172a; color:#f8fafc; padding:14px 16px; border-radius:8px; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:12.5px; overflow-x:auto; margin:8px 0; line-height:1.5;}
 </style>
 </head>
 <body>
@@ -66,8 +96,11 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
   </div>
   <nav id="topNav">
     <button class="nav-tab active" data-view="submissions">Submissions</button>
+    <button class="nav-tab" data-view="reviewerDashboard" id="navReviewer" style="display:none;">🔍 Reviewer Workspace</button>
+    <button class="nav-tab" data-view="spreadsheet" id="navSpreadsheet" style="display:none;">📊 Excel Sheet</button>
     <button class="nav-tab" data-view="upload" id="navUpload" style="display:none;">Upload Documents</button>
     <button class="nav-tab" data-view="customise" id="navCustomise" style="display:none;">Customise</button>
+    <button class="nav-tab" data-view="integrate" id="navIntegrate" style="display:none;">🔌 Connect Website</button>
     <button class="nav-tab" data-view="users" id="navUsers" style="display:none;">Users</button>
   </nav>
   <div class="user-menu">
@@ -84,14 +117,14 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
   </div>
 
   <!-- SUBMISSIONS VIEW -->
-  <section id="viewSubmissions" class="view">
+  <section id="viewSubmissions" class="view" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h2>Submissions</h2>
         <button class="btn btn-primary" id="btnNewUpload">+ New Application</button>
       </div>
       <div id="aiWarning" style="display:none; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:13px; color:#92400e;">
-        ⚠️ <strong>AI vision reader is disabled</strong> — <code>ANTHROPIC_API_KEY</code> is not set. Documents are verified using heuristic text extraction only, which is less accurate.
+        ⚠️ <strong>AI vision reader is disabled</strong> — <code>GEMINI_API_KEY</code> or <code>ANTHROPIC_API_KEY</code> is not set. Documents are verified using heuristic text extraction only.
       </div>
       <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
         <input type="text" id="searchInput" placeholder="Search applicant, ID, institution…" style="flex:1; min-width:180px; padding:8px 12px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:13px;">
@@ -117,6 +150,207 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
           <button class="btn btn-secondary" id="btnPrev" style="font-size:13px; padding:6px 12px;">← Prev</button>
           <button class="btn btn-secondary" id="btnNext" style="font-size:13px; padding:6px 12px;">Next →</button>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVIEWER WORKSPACE DASHBOARD -->
+  <section id="viewReviewerDashboard" class="view" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div>
+        <h2 style="margin:0;">Reviewer Verification Workspace</h2>
+        <p style="color:var(--mute); margin:4px 0 0 0; font-size:13px;">Review documents, compare cross-document claims, inspect digital signatures, and record approval decisions.</p>
+      </div>
+      <button class="btn btn-secondary" onclick="loadReviewerDashboard()">↻ Refresh Queue</button>
+    </div>
+
+    <!-- Reviewer Metrics KPI Cards -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-num" id="kpiTotal">0</div>
+        <div class="metric-label">Total Applications</div>
+      </div>
+      <div class="metric-card" style="border-left:4px solid var(--grn);">
+        <div class="metric-num" id="kpiCleared" style="color:var(--grn);">0</div>
+        <div class="metric-label">Cleared Automatically</div>
+      </div>
+      <div class="metric-card" style="border-left:4px solid var(--ylw);">
+        <div class="metric-num" id="kpiReview" style="color:var(--ylw);">0</div>
+        <div class="metric-label">Needs Review / Warnings</div>
+      </div>
+      <div class="metric-card" style="border-left:4px solid var(--red);">
+        <div class="metric-num" id="kpiHighRisk" style="color:var(--red);">0</div>
+        <div class="metric-label">Discrepant / High Risk</div>
+      </div>
+    </div>
+
+    <!-- Split Reviewer Workspace -->
+    <div class="reviewer-workspace">
+      <!-- Left: Case Queue -->
+      <div>
+        <div style="background:white; border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:12px;">
+          <input type="text" id="reviewQueueSearch" placeholder="Filter queue by applicant..." style="width:100%; padding:8px 12px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:13px; margin-bottom:8px;">
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-secondary" id="queueFilterAll" style="flex:1; font-size:11.5px; padding:4px;">All</button>
+            <button class="btn btn-secondary" id="queueFilterReview" style="flex:1; font-size:11.5px; padding:4px; color:var(--ylw);">Review</button>
+            <button class="btn btn-secondary" id="queueFilterHigh" style="flex:1; font-size:11.5px; padding:4px; color:var(--red);">High Risk</button>
+          </div>
+        </div>
+        <div class="case-queue" id="caseQueueList">
+          <p style="color:var(--mute); font-size:13px;">Loading application queue...</p>
+        </div>
+      </div>
+
+      <!-- Right: Detailed Case Inspection Pane -->
+      <div class="inspector-pane" id="reviewerInspector">
+        <div id="inspectorEmpty" style="text-align:center; padding:60px 20px; color:var(--mute);">
+          <div style="font-size:36px; margin-bottom:10px;">📋</div>
+          <div style="font-size:16px; font-weight:600; color:var(--ink);">Select an application from the queue to inspect</div>
+          <p style="font-size:13px; max-width:400px; margin:8px auto 0;">View verified PDF documents, cross-document claim reconciliations, tampering indicators, and record reviewer rulings.</p>
+        </div>
+
+        <div id="inspectorContent" style="display:none;">
+          <!-- Case Header -->
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); padding-bottom:16px; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+            <div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <h2 id="inspCaseId" style="margin:0; font-size:20px;"></h2>
+                <span class="badge" id="inspVerdictBadge"></span>
+                <span id="inspRiskBadge"></span>
+              </div>
+              <div style="color:var(--mute); font-size:13px; margin-top:4px;">
+                Applicant: <b id="inspApplicant" style="color:var(--ink);"></b> · Institution: <span id="inspInstitution"></span> · Submitted: <span id="inspDate"></span>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-primary" id="btnInspApprove" style="background:var(--grn);">✓ Approve</button>
+              <button class="btn btn-secondary" id="btnInspReject" style="color:var(--red);">✕ Reject</button>
+              <button class="btn btn-secondary" id="btnInspClarify">💬 Clarify</button>
+              <a id="inspSlipLink" target="_blank" class="btn btn-secondary" style="text-decoration:none;">📄 Result Slip</a>
+            </div>
+          </div>
+
+          <!-- Inspector Tabs -->
+          <div class="sub-tabs">
+            <button class="sub-tab active" data-subtab="docs">📄 Documents &amp; Proofs (<span id="inspDocCount">0</span>)</button>
+            <button class="sub-tab" data-subtab="claims">⚖️ "Papers, Please" Cross-Checks</button>
+            <button class="sub-tab" data-subtab="preview">🔍 PDF Inspection Viewer</button>
+            <button class="sub-tab" data-subtab="audit">📝 Reviewer Log &amp; Audit Trail</button>
+          </div>
+
+          <!-- Tab 1: Documents & Proofs -->
+          <div id="subtabDocs" class="subtab-panel">
+            <div id="inspDocsContainer" style="display:grid; gap:12px;"></div>
+          </div>
+
+          <!-- Tab 2: Claims Reconciliation -->
+          <div id="subtabClaims" class="subtab-panel" style="display:none;">
+            <div id="inspClaimsContainer"></div>
+          </div>
+
+          <!-- Tab 3: PDF Document Viewer -->
+          <div id="subtabPreview" class="subtab-panel" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <label style="font-size:12.5px; font-weight:600;">Document:</label>
+                <select id="previewDocSelect" style="padding:4px 8px; font-size:12.5px; border:1px solid var(--line); border-radius:4px;"></select>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-secondary" style="font-size:12px; padding:4px 8px;" onclick="changePreviewPage(-1)">← Prev</button>
+                <span id="previewPageIndicator" style="font-size:12px; font-weight:600; color:var(--mute);">Page 1</span>
+                <button class="btn btn-secondary" style="font-size:12px; padding:4px 8px;" onclick="changePreviewPage(1)">Next →</button>
+                <a id="previewDownloadLink" target="_blank" class="btn btn-secondary" style="font-size:12px; padding:4px 8px; text-decoration:none;">⬇ Download File</a>
+              </div>
+            </div>
+            <div id="previewImgWrap" style="text-align:center; border:1px solid var(--line); border-radius:8px; background:#f1f5f9; padding:10px; overflow:auto; max-height:650px;">
+              <img id="previewPageImg" src="" alt="Document Preview" style="max-width:100%; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.1); background:white;">
+            </div>
+          </div>
+
+          <!-- Tab 4: Audit Actions -->
+          <div id="subtabAudit" class="subtab-panel" style="display:none;">
+            <div style="margin-bottom:16px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:14px;">
+              <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Add Reviewer Note or Question</label>
+              <textarea id="inspActionNote" placeholder="Type internal observation or clarification requested from applicant..." style="width:100%; height:70px; padding:8px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:13px; margin-bottom:8px;"></textarea>
+              <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-primary" id="btnInspAddNote" style="font-size:12.5px; padding:6px 14px;">Post Note</button>
+              </div>
+            </div>
+            <div id="inspAuditTrail"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADMIN SPREADSHEET (EXCEL) VIEW -->
+  <section id="viewSpreadsheet" class="view" style="display:none;">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2 style="margin:0;">Spreadsheet Master View</h2>
+          <p style="color:var(--mute); margin:4px 0 0 0; font-size:13px;">Interactive Excel-styled data grid of all application verifications, key claim values, and discrepancy indicators.</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <a href="/api/submissions/export.excel" class="btn btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+            <span>📊</span> Download as Excel (.xls)
+          </a>
+          <a href="/api/submissions/export.csv" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+            <span>📑</span> Export CSV
+          </a>
+          <button class="btn btn-secondary" onclick="loadSpreadsheetView()">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Spreadsheet Toolbar -->
+      <div style="display:flex; gap:10px; margin-bottom:14px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:10px 14px; align-items:center; flex-wrap:wrap;">
+        <span style="font-size:12px; font-weight:700; color:var(--mute); text-transform:uppercase;">Sheet Filters:</span>
+        <input type="text" id="sheetSearchInput" placeholder="Filter cell values (applicant, ID, institution)..." style="flex:1; min-width:200px; padding:6px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:12.5px;">
+        <select id="sheetStatusFilter" style="padding:6px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:12.5px;">
+          <option value="">All Verdicts</option>
+          <option value="Cleared">Cleared</option>
+          <option value="Review">Review</option>
+          <option value="Not cleared">Not cleared</option>
+          <option value="Incomplete">Incomplete</option>
+        </select>
+        <span id="sheetCount" style="font-size:12px; color:var(--mute); font-weight:600; margin-left:auto;">0 rows</span>
+      </div>
+
+      <!-- Excel-styled Data Grid -->
+      <div class="sheet-container">
+        <table class="sheet-table" id="excelGridTable">
+          <thead>
+            <tr class="col-letters-row">
+              <th class="col-letter">#</th>
+              <th class="col-letter">A</th>
+              <th class="col-letter">B</th>
+              <th class="col-letter">C</th>
+              <th class="col-letter">D</th>
+              <th class="col-letter">E</th>
+              <th class="col-letter">F</th>
+              <th class="col-letter">G</th>
+              <th class="col-letter">H</th>
+              <th class="col-letter">I</th>
+              <th class="col-letter">J</th>
+            </tr>
+            <tr>
+              <th class="col-title" style="width:36px; text-align:center;">Row</th>
+              <th class="col-title">Submission ID</th>
+              <th class="col-title">Applicant Name</th>
+              <th class="col-title">Institution</th>
+              <th class="col-title">Verdict</th>
+              <th class="col-title">Risk Score</th>
+              <th class="col-title">Documents</th>
+              <th class="col-title">Discrepancies</th>
+              <th class="col-title">Submitted Date</th>
+              <th class="col-title">Extracted Key Claims</th>
+              <th class="col-title">Files Saved</th>
+            </tr>
+          </thead>
+          <tbody id="excelGridBody">
+            <tr><td colspan="11" style="text-align:center; padding:30px; color:var(--mute);">Loading spreadsheet data...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -243,7 +477,8 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
 
       <div style="background:#f1f5f9; padding:16px; border-radius:8px; margin:16px 0;">
         <label style="font-weight:600; display:block; margin-bottom:8px;">Load Pre-built Preset</label>
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="applyPreset('AICTE Approval')" style="background:var(--brand);">🏛️ AICTE Approval (14 Docs)</button>
           <button class="btn btn-secondary" onclick="applyPreset('College')">College Admissions</button>
           <button class="btn btn-secondary" onclick="applyPreset('Government Office')">Government Office</button>
           <button class="btn btn-secondary" onclick="applyPreset('Blank')">Blank Template</button>
@@ -266,6 +501,20 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
 
       <h3>Configured Documents</h3>
       <div id="cfgDocsList" style="margin-bottom:20px;"></div>
+
+      <!-- AICTE Official Certificates Library -->
+      <div style="margin-top:30px; border-top:1px solid var(--line); padding-top:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h3 style="margin:0;">🏛️ AICTE Approval Process Handbook — Certificate Library</h3>
+            <p style="color:var(--mute); font-size:13px; margin:4px 0 0 0;">Add or remove mandatory and statutory AICTE certificates to customise your checklist exactly to your institution's compliance requirements.</p>
+          </div>
+          <button class="btn btn-secondary" onclick="applyPreset('AICTE Approval')" style="font-size:12.5px;">+ Load All 14 AICTE Certificates</button>
+        </div>
+        <div id="aicteCatalogList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:12px; margin-bottom:20px;">
+          <p style="color:var(--mute); font-size:13px;">Loading AICTE catalog...</p>
+        </div>
+      </div>
 
       <div style="margin:20px 0; padding:16px; background:#f8fafc; border:1px solid var(--line); border-radius:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -295,6 +544,76 @@ th{background:#f8fafc;font-size:12px;text-transform:uppercase;color:var(--mute);
         <thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Email</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- CONNECT & EMBED WEBSITE VIEW (ADMIN ONLY) -->
+  <section id="viewIntegrate" class="view" style="display:none;">
+    <div class="card">
+      <h2>🔌 Connect to Any Website</h2>
+      <p style="color:var(--mute); margin-top:-8px;">Embed Docroc verification into external portals, websites, applicant portals, or CMS platforms in seconds.</p>
+
+      <!-- Option 1: 1-Line Drop-in JavaScript Widget -->
+      <div style="background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:20px; margin:20px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h3 style="margin:0; font-size:16px;">Option 1: 1-Line Embed Widget (Recommended)</h3>
+            <p style="margin:4px 0 0 0; font-size:13px; color:var(--mute);">Paste this single tag anywhere on your website. Docroc renders a responsive upload dropzone and verification card automatically.</p>
+          </div>
+          <button class="btn btn-secondary" style="font-size:12px;" onclick="copySnippet('codeWidget')">📋 Copy Script</button>
+        </div>
+        <pre class="code-snippet" id="codeWidget">&lt;!-- Docroc 1-Line Embed Widget --&gt;
+&lt;div id="docroc-container"&gt;&lt;/div&gt;
+&lt;script src="<span class="embed-origin"></span>/widget.js" 
+        data-container="docroc-container" 
+        data-theme="light"
+        data-button-text="Verify Documents"&gt;&lt;/script&gt;</pre>
+      </div>
+
+      <!-- Option 2: Responsive Iframe Embed -->
+      <div style="background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:20px; margin:20px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h3 style="margin:0; font-size:16px;">Option 2: Responsive iFrame</h3>
+            <p style="margin:4px 0 0 0; font-size:13px; color:var(--mute);">Works in WordPress, Squarespace, Wix, or custom web portals with zero scripting.</p>
+          </div>
+          <button class="btn btn-secondary" style="font-size:12px;" onclick="copySnippet('codeIframe')">📋 Copy iFrame</button>
+        </div>
+        <pre class="code-snippet" id="codeIframe">&lt;iframe src="<span class="embed-origin"></span>/embed" 
+        width="100%" 
+        height="720" 
+        frameborder="0" 
+        style="border:none; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.08);"&gt;
+&lt;/iframe&gt;</pre>
+      </div>
+
+      <!-- Option 3: Direct Headless REST API -->
+      <div style="background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:20px; margin:20px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h3 style="margin:0; font-size:16px;">Option 3: Direct Headless REST API</h3>
+            <p style="margin:4px 0 0 0; font-size:13px; color:var(--mute);">Submit document multipart payloads from your backend server or custom mobile/web frontend without login cookies.</p>
+          </div>
+          <button class="btn btn-secondary" style="font-size:12px;" onclick="copySnippet('codeApi')">📋 Copy cURL</button>
+        </div>
+        <pre class="code-snippet" id="codeApi">curl -X POST "<span class="embed-origin"></span>/api/submissions/direct" \
+  -F "applicant_name=Acme Engineering College" \
+  -F "files=@fire_noc.pdf" \
+  -F "files=@building_occupancy.pdf"</pre>
+      </div>
+
+      <!-- Option 4: Webhook Real-time Notifications -->
+      <div style="background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:20px; margin:20px 0;">
+        <h3 style="margin:0 0 8px 0; font-size:16px;">Option 4: Real-time Webhook Callbacks</h3>
+        <p style="margin:0 0 14px 0; font-size:13px; color:var(--mute);">Receive real-time JSON payloads whenever an applicant completes verification, allowing your external system to update student/institutional status automatically.</p>
+        
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input type="url" id="webhookUrlInput" placeholder="https://your-university-portal.com/api/docroc-webhook" style="flex:1; min-width:260px; padding:8px 12px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:13px;">
+          <button class="btn btn-primary" id="btnSaveWebhook">Save Webhook</button>
+          <button class="btn btn-secondary" id="btnTestWebhook">Test Ping</button>
+        </div>
+        <div id="webhookStatusMsg" style="margin-top:8px; font-size:12.5px; display:none;"></div>
+      </div>
     </div>
   </section>
 </main>
@@ -352,10 +671,19 @@ async function init() {
   if (currentUser.role === "applicant") {
     $("navUpload").style.display = "inline-block";
     showView("submissions");
+  } else if (currentUser.role === "reviewer") {
+    $("navReviewer").style.display = "inline-block";
+    $("navSpreadsheet").style.display = "inline-block";
+    $("navUpload").style.display = "none";
+    showView("reviewerDashboard");
   } else if (currentUser.role === "admin") {
-    $("navUpload").style.display = "inline-block";
+    $("navReviewer").style.display = "inline-block";
+    $("navSpreadsheet").style.display = "inline-block";
+    $("navUpload").style.display = "none";
     $("navCustomise").style.display = "inline-block";
+    $("navIntegrate").style.display = "inline-block";
     $("navUsers").style.display = "inline-block";
+    showView("reviewerDashboard");
   }
 
   loadConfig();
@@ -371,8 +699,11 @@ function showView(viewId) {
   if (el) el.style.display = "block";
 
   if (viewId === "submissions") loadSubmissions();
+  if (viewId === "reviewerDashboard") loadReviewerDashboard();
+  if (viewId === "spreadsheet") loadSpreadsheetView();
   if (viewId === "upload") loadChecklist();
   if (viewId === "customise") renderCustomise();
+  if (viewId === "integrate") loadIntegrate();
   if (viewId === "users") loadUsers();
 }
 
@@ -781,11 +1112,13 @@ function renderCustomise() {
   $("cfgInstName").value = activeConfig.institution_name || "";
   $("cfgDeliveryMode").value = activeConfig.delivery_mode || "deliver_files";
   $("cfgDocsList").innerHTML = (activeConfig.documents || []).map(d => `
-    <div style="background:#f8fafc; border:1px solid var(--line); padding:10px 14px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between;">
-      <div><b>${d.title}</b> (<code>${d.id}</code>) - ${d.required ? 'Required' : 'Optional'}</div>
+    <div style="background:#f8fafc; border:1px solid var(--line); padding:10px 14px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+      <div><b>${d.title}</b> (<code>${d.id}</code>) - ${d.required ? '<span style="color:var(--red);">Required</span>' : 'Optional'}</div>
       <div style="font-size:12px; color:var(--mute);">${(d.expected_keywords || []).join(', ')}</div>
     </div>
   `).join('');
+
+  loadAicteCatalog();
 
   // Load public signup toggle state from /api/me
   fetch("/api/me").then(r => r.json()).then(me => {
@@ -915,6 +1248,474 @@ if (fCreate) {
       btn.disabled = false;
     }
   });
+}
+
+// ── Reviewer Workspace Dashboard ──────────────────────────────────────────
+let _reviewQueue = [];
+let _activeReviewCaseId = null;
+let _reviewQueueFilter = "all";
+let _currentInspDoc = null;
+let _currentInspPage = 1;
+
+async function loadReviewerDashboard() {
+  try {
+    const res = await (await fetch("/api/submissions?limit=1000")).json();
+    _reviewQueue = res.submissions || (Array.isArray(res) ? res : []);
+    
+    // Update KPI metrics
+    if ($("kpiTotal")) $("kpiTotal").textContent = _reviewQueue.length;
+    if ($("kpiCleared")) $("kpiCleared").textContent = _reviewQueue.filter(s => (s.status||'').toLowerCase() === 'cleared').length;
+    if ($("kpiReview")) $("kpiReview").textContent = _reviewQueue.filter(s => (s.status||'').toLowerCase() === 'review').length;
+    if ($("kpiHighRisk")) $("kpiHighRisk").textContent = _reviewQueue.filter(s => (s.risk || 0) >= 10 || (s.status||'').toLowerCase() === 'not cleared').length;
+
+    renderCaseQueue();
+  } catch (e) {
+    if ($("caseQueueList")) $("caseQueueList").innerHTML = '<p style="color:var(--red); font-size:13px;">Failed to load queue: ' + e.message + '</p>';
+  }
+}
+
+function renderCaseQueue() {
+  const container = $("caseQueueList");
+  if (!container) return;
+  const qSearch = ($("reviewQueueSearch") ? $("reviewQueueSearch").value.trim().toLowerCase() : "");
+  
+  let list = _reviewQueue.filter(s => {
+    if (_reviewQueueFilter === "review" && (s.status||'').toLowerCase() !== "review") return false;
+    if (_reviewQueueFilter === "high" && (s.risk || 0) < 10 && (s.status||'').toLowerCase() !== "not cleared") return false;
+    if (qSearch) {
+      const match = (s.applicant_name||'').toLowerCase().includes(qSearch) ||
+                    (s.id||'').toLowerCase().includes(qSearch) ||
+                    (s.institution||'').toLowerCase().includes(qSearch);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if (list.length === 0) {
+    container.innerHTML = '<p style="color:var(--mute); font-size:13px; text-align:center; padding:20px 0;">No matching cases in queue.</p>';
+    return;
+  }
+
+  container.innerHTML = list.map(s => `
+    <div class="case-card ${_activeReviewCaseId === s.id ? 'active' : ''}" onclick="selectReviewCase('${s.id}')">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+        <span style="font-weight:700; font-size:14px; color:var(--ink);">${s.applicant_name || 'Anonymous'}</span>
+        <span class="badge ${s.status.toLowerCase().replace(/ /g, '_')}" style="font-size:11px; padding:2px 7px;">${s.status}</span>
+      </div>
+      <div style="font-size:11.5px; color:var(--mute); margin-bottom:8px;"><code>${s.id}</code> · ${new Date(s.created_at * 1000).toLocaleDateString()}</div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:12px; color:var(--ink2);">${s.institution || 'Docroc'}</span>
+        ${riskBadge(s.risk || 0)}
+      </div>
+    </div>
+  `).join('');
+}
+
+// Case selection in Reviewer Inspector
+async function selectReviewCase(subId) {
+  _activeReviewCaseId = subId;
+  renderCaseQueue();
+
+  const emptyPane = $("inspectorEmpty");
+  const contentPane = $("inspectorContent");
+  if (emptyPane) emptyPane.style.display = "none";
+  if (contentPane) contentPane.style.display = "block";
+
+  try {
+    const s = await (await fetch("/api/submissions/" + subId)).json();
+    const rep = s.report || {};
+
+    // Header info
+    if ($("inspCaseId")) $("inspCaseId").textContent = s.id;
+    if ($("inspVerdictBadge")) {
+      $("inspVerdictBadge").textContent = s.status;
+      $("inspVerdictBadge").className = "badge " + s.status.toLowerCase().replace(/ /g, '_');
+    }
+    if ($("inspRiskBadge")) $("inspRiskBadge").innerHTML = riskBadge(s.risk || 0);
+    if ($("inspApplicant")) $("inspApplicant").textContent = s.applicant_name;
+    if ($("inspInstitution")) $("inspInstitution").textContent = s.institution;
+    if ($("inspDate")) $("inspDate").textContent = new Date(s.created_at * 1000).toLocaleString();
+    if ($("inspSlipLink")) $("inspSlipLink").href = `/api/submissions/${s.id}/slip`;
+
+    // Tab 1: Documents
+    const docs = rep.documents || [];
+    if ($("inspDocCount")) $("inspDocCount").textContent = docs.length;
+    if ($("inspDocsContainer")) {
+      $("inspDocsContainer").innerHTML = docs.length === 0 ? '<p style="color:var(--mute);">No documents attached.</p>' : docs.map(d => `
+        <div style="background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div style="font-weight:700; font-size:14px; color:var(--ink);">${d.title}</div>
+            <div style="font-size:12px; color:var(--mute); margin-top:2px;">
+              Legible: <b>${d.is_legible ? '✓ Yes' : '✗ Unclear'}</b> · Digital Signature: <b>${d.has_digital_signature ? '✓ Verified' : 'None'}</b>
+              ${(d.issues || []).length > 0 ? `<br><span style="color:var(--red);">Issues: ${d.issues.join('; ')}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge ${d.status === 'valid' ? 'cleared' : 'not_cleared'}">${d.status}</span>
+            <a href="/api/submissions/${s.id}/files/${d.doc_id}" target="_blank" class="btn btn-secondary" style="font-size:12px; padding:4px 8px; text-decoration:none;">⬇ Download</a>
+            <button class="btn btn-primary" style="font-size:12px; padding:4px 8px;" onclick="openInspectorDocViewer('${d.doc_id}')">🔍 Inspect</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Tab 2: Claims Reconciliation ("Papers, Please")
+    const claims = rep.cross_checks || [];
+    if ($("inspClaimsContainer")) {
+      $("inspClaimsContainer").innerHTML = claims.length === 0 ? '<p style="color:var(--mute);">No cross-document discrepancy checks required for this template.</p>' : claims.map(cc => `
+        <div class="side-by-side">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <b style="font-size:14px;">${cc.group_name} (${(cc.match_type||'').toUpperCase()})</b>
+            <span class="badge ${cc.matched ? 'cleared' : 'not_cleared'}">${cc.matched ? 'MATCHED' : 'DISCREPANCY'}</span>
+          </div>
+          <div style="font-size:12.5px; color:var(--mute); margin-bottom:10px;">${cc.reason}</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px;">
+            ${Object.entries(cc.versions || {}).map(([doc, val]) => `
+              <div style="background:white; padding:10px 12px; border-radius:6px; border:1px solid var(--line);">
+                <div style="font-size:11px; color:var(--mute); text-transform:uppercase; font-weight:700;">${doc}</div>
+                <div style="font-weight:700; font-size:14px; margin-top:3px; color:var(--ink);">${val}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Tab 3: PDF Document Previewer setup
+    const docSelect = $("previewDocSelect");
+    if (docSelect && docs.length > 0) {
+      docSelect.innerHTML = docs.map(d => `<option value="${d.doc_id}">${d.title}</option>`).join('');
+      _currentInspDoc = docs[0].doc_id;
+      _currentInspPage = 1;
+      updateInspectorPreview();
+      docSelect.onchange = () => {
+        _currentInspDoc = docSelect.value;
+        _currentInspPage = 1;
+        updateInspectorPreview();
+      };
+    }
+
+    // Tab 4: Audit trail
+    renderInspectorAudit(s.audit_log || []);
+
+    // Wire actions
+    if ($("btnInspApprove")) $("btnInspApprove").onclick = () => postReviewerDecision(subId, "approve");
+    if ($("btnInspReject")) $("btnInspReject").onclick = () => postReviewerDecision(subId, "reject");
+    if ($("btnInspClarify")) $("btnInspClarify").onclick = () => postReviewerDecision(subId, "request_clarification");
+    if ($("btnInspAddNote")) $("btnInspAddNote").onclick = () => postInspectorNote(subId);
+
+  } catch (e) {
+    alert("Failed to load case detail: " + e.message);
+  }
+}
+
+function openInspectorDocViewer(docId) {
+  switchInspectorSubtab("preview");
+  const docSelect = $("previewDocSelect");
+  if (docSelect) docSelect.value = docId;
+  _currentInspDoc = docId;
+  _currentInspPage = 1;
+  updateInspectorPreview();
+}
+
+function updateInspectorPreview() {
+  if (!_activeReviewCaseId || !_currentInspDoc) return;
+  const img = $("previewPageImg");
+  const indicator = $("previewPageIndicator");
+  const dLink = $("previewDownloadLink");
+  if (img) img.src = `/api/submissions/${_activeReviewCaseId}/page/${_currentInspDoc}/${_currentInspPage}`;
+  if (indicator) indicator.textContent = `Page ${_currentInspPage}`;
+  if (dLink) dLink.href = `/api/submissions/${_activeReviewCaseId}/files/${_currentInspDoc}`;
+}
+
+function changePreviewPage(delta) {
+  const next = _currentInspPage + delta;
+  if (next < 1) return;
+  _currentInspPage = next;
+  updateInspectorPreview();
+}
+
+function renderInspectorAudit(trail) {
+  const container = $("inspAuditTrail");
+  if (!container) return;
+  if (!trail || trail.length === 0) {
+    container.innerHTML = '<p style="color:var(--mute); font-size:13px;">No actions recorded yet.</p>';
+    return;
+  }
+  container.innerHTML = trail.map(a => `
+    <div style="background:white; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-bottom:8px; font-size:13px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span style="font-weight:700; color:var(--ink);">${a.user || 'Reviewer'} &middot; <span style="text-transform:capitalize; color:var(--brand);">${(a.action||'').replace(/_/g, ' ')}</span></span>
+        <span style="color:var(--mute); font-size:11.5px;">${new Date((a.timestamp || 0) * 1000).toLocaleString()}</span>
+      </div>
+      <div style="color:var(--ink2);">${a.note || ''}</div>
+    </div>
+  `).join('');
+}
+
+async function postInspectorNote(subId) {
+  const noteEl = $("inspActionNote");
+  const note = (noteEl ? noteEl.value.trim() : "");
+  if (!note) {
+    alert("Please enter a note before posting.");
+    return;
+  }
+  await fetch(`/api/submissions/${subId}/action`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action_kind: "note", note: note})
+  });
+  if (noteEl) noteEl.value = "";
+  selectReviewCase(subId);
+}
+
+async function postReviewerDecision(subId, kind) {
+  const promptText = kind === "approve" ? "Enter approval confirmation note:" : (kind === "reject" ? "Reason for rejection:" : "Specify clarification needed from applicant:");
+  const note = prompt(promptText);
+  if (note === null) return;
+  await fetch(`/api/submissions/${subId}/action`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action_kind: kind, note: note || `Reviewer marked ${kind}`})
+  });
+  await loadReviewerDashboard();
+  selectReviewCase(subId);
+}
+
+// Subtab switcher
+function switchInspectorSubtab(name) {
+  document.querySelectorAll(".sub-tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".subtab-panel").forEach(p => p.style.display = "none");
+  const btn = document.querySelector(`.sub-tab[data-subtab="${name}"]`);
+  if (btn) btn.classList.add("active");
+  const panel = $("subtab" + name.charAt(0).toUpperCase() + name.slice(1));
+  if (panel) panel.style.display = "block";
+}
+document.querySelectorAll(".sub-tab").forEach(t => {
+  t.addEventListener("click", () => switchInspectorSubtab(t.dataset.subtab));
+});
+
+// Queue filters wiring
+if ($("queueFilterAll")) $("queueFilterAll").onclick = () => { _reviewQueueFilter = "all"; renderCaseQueue(); };
+if ($("queueFilterReview")) $("queueFilterReview").onclick = () => { _reviewQueueFilter = "review"; renderCaseQueue(); };
+if ($("queueFilterHigh")) $("queueFilterHigh").onclick = () => { _reviewQueueFilter = "high"; renderCaseQueue(); };
+if ($("reviewQueueSearch")) $("reviewQueueSearch").oninput = () => renderCaseQueue();
+
+// ── Admin Spreadsheet (Excel) View ─────────────────────────────────────────
+let _sheetSubmissions = [];
+
+async function loadSpreadsheetView() {
+  const body = $("excelGridBody");
+  if (body) body.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:var(--mute);">Fetching latest rows from server...</td></tr>';
+  try {
+    const res = await (await fetch("/api/submissions?limit=1000")).json();
+    _sheetSubmissions = res.submissions || (Array.isArray(res) ? res : []);
+    renderSpreadsheet();
+  } catch (e) {
+    if (body) body.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:30px; color:var(--red);">Failed to load sheet: ${e.message}</td></tr>`;
+  }
+}
+
+function renderSpreadsheet() {
+  const body = $("excelGridBody");
+  if (!body) return;
+  const q = ($("sheetSearchInput") ? $("sheetSearchInput").value.trim().toLowerCase() : "");
+  const statusFilter = ($("sheetStatusFilter") ? $("sheetStatusFilter").value : "");
+
+  const filtered = _sheetSubmissions.filter(s => {
+    if (statusFilter && (s.status||'').toLowerCase() !== statusFilter.toLowerCase()) return false;
+    if (q) {
+      const match = (s.id||'').toLowerCase().includes(q) ||
+                    (s.applicant_name||'').toLowerCase().includes(q) ||
+                    (s.institution||'').toLowerCase().includes(q) ||
+                    (s.status||'').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if ($("sheetCount")) $("sheetCount").textContent = `${filtered.length} row${filtered.length === 1 ? '' : 's'}`;
+
+  if (filtered.length === 0) {
+    body.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:40px; color:var(--mute);">No matching records found in sheet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = filtered.map((s, idx) => {
+    const rep = s.report || {};
+    const docCount = (rep.documents || []).length;
+    const discCount = (rep.cross_checks || []).filter(c => !c.matched).length;
+    const dateStr = new Date(s.created_at * 1000).toLocaleString();
+    const claimsSummary = (rep.cross_checks || []).map(c => `${c.group_name}: ${Object.values(c.versions || {})[0] || '-'}`).join(' | ') || 'N/A';
+
+    return `
+      <tr onclick="this.classList.toggle('selected')">
+        <td class="row-num">${idx + 1}</td>
+        <td><code>${s.id}</code></td>
+        <td><b>${s.applicant_name || '-'}</b></td>
+        <td>${s.institution || '-'}</td>
+        <td><span class="badge ${s.status.toLowerCase().replace(/ /g, '_')}" style="font-size:11px;">${s.status}</span></td>
+        <td>${riskBadge(s.risk || 0)}</td>
+        <td style="text-align:center;">${docCount} doc${docCount === 1 ? '' : 's'}</td>
+        <td style="text-align:center; ${discCount > 0 ? 'color:var(--red); font-weight:700;' : 'color:var(--grn);'}">${discCount}</td>
+        <td>${dateStr}</td>
+        <td style="max-width:280px; overflow:hidden; text-overflow:ellipsis;" title="${claimsSummary}">${claimsSummary}</td>
+        <td>${s.files_wiped ? 'Wiped (Data only)' : 'Preserved'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+if ($("sheetSearchInput")) $("sheetSearchInput").oninput = renderSpreadsheet;
+if ($("sheetStatusFilter")) $("sheetStatusFilter").onchange = renderSpreadsheet;
+
+// ── AICTE Catalog & Customisation ──────────────────────────────────────────
+async function loadAicteCatalog() {
+  const container = $("aicteCatalogList");
+  if (!container) return;
+  try {
+    const res = await (await fetch("/api/aicte/catalog")).json();
+    const catalog = res.catalog || [];
+    const configuredDocIds = new Set((activeConfig.documents || []).map(d => d.id));
+
+    container.innerHTML = catalog.map(c => {
+      const isAdded = configuredDocIds.has(c.id);
+      return `
+        <div style="background:white; border:1px solid ${isAdded ? 'var(--brand)' : 'var(--line)'}; border-radius:8px; padding:14px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+              <span style="font-weight:700; font-size:13.5px; color:var(--ink);">${c.title}</span>
+              <span style="font-size:11px; font-weight:700; padding:2px 6px; border-radius:4px; background:#f1f5f9; color:var(--mute);">${c.category || 'AICTE'}</span>
+            </div>
+            <div style="font-size:11px; color:var(--mute); font-family:monospace; margin-bottom:6px;">${c.id}</div>
+            <p style="font-size:12px; color:var(--ink2); margin:0 0 10px 0; line-height:1.4;">${c.description}</p>
+            <div style="font-size:11px; color:var(--mute);">Expected terms: ${(c.expected_keywords || []).slice(0, 4).join(', ')}...</div>
+          </div>
+          <div style="margin-top:12px; border-top:1px solid var(--line); padding-top:8px; display:flex; justify-content:flex-end;">
+            ${isAdded 
+              ? `<button class="btn btn-secondary" style="font-size:12px; padding:4px 10px; color:var(--red);" onclick="removeAicteDoc('${c.id}')">✓ In Checklist (Remove)</button>`
+              : `<button class="btn btn-primary" style="font-size:12px; padding:4px 10px;" onclick="addAicteDoc('${c.id}')">+ Add to Checklist</button>`
+            }
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = '<p style="color:var(--red); font-size:13px;">Failed to load AICTE catalog: ' + e.message + '</p>';
+  }
+}
+
+async function addAicteDoc(docId) {
+  try {
+    const res = await (await fetch("/api/aicte/catalog")).json();
+    const doc = (res.catalog || []).find(d => d.id === docId);
+    if (!doc) throw new Error("Document not found in catalog");
+
+    const r = await fetch("/api/config/add-document", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({document: doc})
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Failed to add document");
+    activeConfig = d.config;
+    renderCustomise();
+  } catch (e) {
+    alert("Error adding document: " + e.message);
+  }
+}
+
+async function removeAicteDoc(docId) {
+  if (!confirm(`Remove '${docId}' from institutional checklist?`)) return;
+  try {
+    const r = await fetch(`/api/config/documents/${docId}`, {method: "DELETE"});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Failed to delete document");
+    activeConfig = d.config;
+    renderCustomise();
+  } catch (e) {
+    alert("Error removing document: " + e.message);
+  }
+}
+
+// ── Website Embed & Webhook Integration ────────────────────────────────────
+function loadIntegrate() {
+  document.querySelectorAll(".embed-origin").forEach(el => el.textContent = window.location.origin);
+  fetch("/api/settings/webhook").then(r => r.json()).then(data => {
+    if ($("webhookUrlInput")) $("webhookUrlInput").value = data.webhook_url || "";
+  }).catch(() => {});
+}
+
+function copySnippet(elementId) {
+  const el = $(elementId);
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    alert("Code snippet copied to clipboard!");
+  }).catch(() => {
+    prompt("Copy code snippet:", text);
+  });
+}
+
+if ($("btnSaveWebhook")) {
+  $("btnSaveWebhook").onclick = async () => {
+    const url = ($("webhookUrlInput") ? $("webhookUrlInput").value.trim() : "");
+    const msg = $("webhookStatusMsg");
+    try {
+      const res = await fetch("/api/settings/webhook", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({webhook_url: url})
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to save webhook");
+      if (msg) {
+        msg.style.display = "block";
+        msg.style.color = "var(--grn)";
+        msg.textContent = "✓ Webhook URL saved successfully.";
+      }
+    } catch (e) {
+      if (msg) {
+        msg.style.display = "block";
+        msg.style.color = "var(--red)";
+        msg.textContent = "✗ Error: " + e.message;
+      }
+    }
+  };
+}
+
+if ($("btnTestWebhook")) {
+  $("btnTestWebhook").onclick = async () => {
+    const url = ($("webhookUrlInput") ? $("webhookUrlInput").value.trim() : "");
+    if (!url) { alert("Please enter a webhook URL first."); return; }
+    const msg = $("webhookStatusMsg");
+    if (msg) {
+      msg.style.display = "block";
+      msg.style.color = "var(--brand)";
+      msg.textContent = "Sending test ping payload to " + url + "...";
+    }
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          event: "test.ping",
+          timestamp: Math.floor(Date.now() / 1000),
+          message: "Hello from Docroc Verification System!"
+        }),
+        mode: "no-cors"
+      });
+      if (msg) {
+        msg.style.color = "var(--grn)";
+        msg.textContent = "✓ Test ping sent to webhook endpoint.";
+      }
+    } catch (e) {
+      if (msg) {
+        msg.style.color = "var(--red)";
+        msg.textContent = "✗ Ping failed: " + e.message;
+      }
+    }
+  };
 }
 
 init();

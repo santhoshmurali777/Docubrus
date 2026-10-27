@@ -281,11 +281,11 @@ async def read_document_with_ai(
     doc_def: DocumentDef,
     fields: List[FieldDef],
 ) -> Optional[Dict[str, Any]]:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not gemini_key and not anthropic_key:
         return None
 
-    model = os.environ.get("DOCROC_MODEL", "claude-3-5-haiku-20241022")
     fields_spec = [{"key": f.key, "label": f.label, "type": f.data_type} for f in fields]
 
     system_prompt = (
@@ -300,7 +300,7 @@ async def read_document_with_ai(
     user_prompt = (
         f"Document type: {doc_def.title} (filename: {filename})\n"
         f"Fields to extract: {json.dumps(fields_spec, indent=2)}\n"
-        "Return a JSON object with keys:\n"
+        "Return a valid JSON object ONLY (enclosed in { ... }) with keys:\n"
         "- extracted_fields: map of key -> value\n"
         "- doc_type_confirmed: boolean\n"
         "- expiry_date: string (YYYY-MM-DD or null)\n"
@@ -316,35 +316,65 @@ async def read_document_with_ai(
     except Exception:
         pass
 
-    try:
-        async with httpx.AsyncClient(timeout=PER_DOC_TIMEOUT) as client:
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "max_tokens": 1000,
-                    "system": system_prompt,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": f"{user_prompt}\n\nDocument Text Content:\n{text_snippet}",
-                        }
-                    ],
-                },
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                content = data.get("content", [{}])[0].get("text", "")
-                m = re.search(r"\{.*\}", content, re.DOTALL)
-                if m:
-                    return json.loads(m.group(0))
-    except Exception:
-        pass
+    # 1. Try Google Gemini API (Free tier)
+    if gemini_key:
+        gemini_models = [os.environ.get("GEMINI_MODEL", "gemini-3.5-flash"), "gemma-4-31b-it", "gemini-3.8-flash"]
+        for g_model in gemini_models:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}"
+                prompt_content = f"{system_prompt}\n\n{user_prompt}\n\nDocument Text Content:\n{text_snippet}"
+                async with httpx.AsyncClient(timeout=PER_DOC_TIMEOUT) as client:
+                    resp = await client.post(
+                        url,
+                        headers={"Content-Type": "application/json"},
+                        json={"contents": [{"parts": [{"text": prompt_content}]}]}
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                content = parts[0].get("text", "")
+                                m = re.search(r"\{.*\}", content, re.DOTALL)
+                                if m:
+                                    return json.loads(m.group(0))
+            except Exception:
+                continue
+
+    # 2. Try Anthropic API
+    if anthropic_key:
+        model = os.environ.get("DOCROC_MODEL", "claude-3-5-haiku-20241022")
+        try:
+            async with httpx.AsyncClient(timeout=PER_DOC_TIMEOUT) as client:
+                resp = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": anthropic_key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json",
+                    },
+                    json={
+                        "model": model,
+                        "max_tokens": 1000,
+                        "system": system_prompt,
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": f"{user_prompt}\n\nDocument Text Content:\n{text_snippet}",
+                            }
+                        ],
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    content = data.get("content", [{}])[0].get("text", "")
+                    m = re.search(r"\{.*\}", content, re.DOTALL)
+                    if m:
+                        return json.loads(m.group(0))
+        except Exception:
+            pass
+
     return None
 
 
